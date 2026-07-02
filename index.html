@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — Access Portal</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --g:#22c522;--g2:#1a9a1a;--g3:#1a6a1a;--g4:#0d2e0d;
+      --r:#c52222;--y:#c5a522;--b:#3a8add;--c:#00bfff;
+      --bg:#010601;--card:#020d02;
+      --mono:'Share Tech Mono',monospace;
+      --display:'Orbitron',sans-serif;
+    }
+    html,body{min-height:100vh;background:var(--bg);color:var(--g);font-family:var(--mono);overflow-x:hidden}
+
+    /* ── Background layers ── */
+    #matrix{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .scanlines{
+      position:fixed;inset:0;z-index:1;pointer-events:none;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);
+    }
+    .vignette{
+      position:fixed;inset:0;z-index:1;pointer-events:none;
+      background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.7) 100%);
+    }
+
+    /* ── Page layout ── */
+    .page{
+      min-height:100vh;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      padding:32px 20px;position:relative;z-index:2;
+      gap:0;
+    }
+
+    /* ── Header ── */
+    .header{text-align:center;margin-bottom:28px}
+    .skull-wrap{margin-bottom:16px;display:inline-block}
+    .skull-svg{
+      width:72px;height:80px;
+      filter:drop-shadow(0 0 12px var(--g)) drop-shadow(0 0 28px rgba(34,197,34,.5));
+      animation:skullPulse 3s ease-in-out infinite;
+    }
+    @keyframes skullPulse{
+      0%,100%{filter:drop-shadow(0 0 8px var(--g)) drop-shadow(0 0 18px rgba(34,197,34,.4))}
+      50%{filter:drop-shadow(0 0 18px var(--g)) drop-shadow(0 0 40px rgba(34,197,34,.7)) drop-shadow(0 0 60px rgba(34,197,34,.3))}
+    }
+    .skull-eyes{animation:eyePulse 2.5s ease-in-out infinite}
+    @keyframes eyePulse{0%,100%{fill-opacity:.5}50%{fill-opacity:1}}
+
+    .brand{
+      font-family:var(--display);font-size:clamp(32px,6vw,52px);
+      font-weight:900;color:var(--g);letter-spacing:8px;
+      text-shadow:0 0 20px var(--g),0 0 40px rgba(34,197,34,.6),0 0 80px rgba(34,197,34,.25);
+      animation:brandGlow 3s ease-in-out infinite,glitch 12s infinite;
+    }
+    @keyframes brandGlow{
+      0%,100%{text-shadow:0 0 18px var(--g),0 0 36px rgba(34,197,34,.5)}
+      50%{text-shadow:0 0 30px var(--g),0 0 60px rgba(34,197,34,.8),0 0 100px rgba(34,197,34,.35)}
+    }
+    @keyframes glitch{
+      0%,89%,91%,93%,100%{transform:none;filter:none}
+      90%{transform:translate(-2px,1px);filter:hue-rotate(30deg)}
+      92%{transform:translate(2px,-1px)}
+      94%{transform:translate(-1px,2px);filter:none}
+    }
+    .brand-sub{
+      font-size:10px;letter-spacing:4px;color:var(--g3);margin-top:5px;
+    }
+    .version-tag{
+      display:inline-flex;align-items:center;gap:6px;
+      font-size:9px;background:rgba(10,30,10,.9);
+      border:1px solid rgba(34,197,34,.25);border-radius:2px;
+      padding:3px 12px;letter-spacing:2px;color:var(--g3);
+      margin-top:8px;
+    }
+    .live-dot{width:5px;height:5px;border-radius:50%;background:var(--g);animation:blink 1.2s step-end infinite}
+    @keyframes blink{50%{opacity:0}}
+
+    .tagline{
+      font-size:12px;color:var(--g3);margin-top:10px;
+      min-height:18px;letter-spacing:1px;
+    }
+    .caret{display:inline-block;width:8px;height:14px;background:var(--g);vertical-align:-2px;margin-left:2px;animation:blink 1s step-end infinite}
+
+    /* ── Auth card ── */
+    .card{
+      width:100%;max-width:420px;
+      background:rgba(2,8,2,0.97);
+      border:1px solid rgba(34,197,34,.35);
+      border-radius:12px;
+      padding:28px 28px 22px;
+      position:relative;overflow:hidden;
+      box-shadow:0 0 60px rgba(34,197,34,.1),0 24px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(34,197,34,.12);
+    }
+    /* Top edge glow */
+    .card::before{
+      content:'';position:absolute;top:0;left:10%;right:10%;height:1px;
+      background:linear-gradient(90deg,transparent,var(--g),transparent);
+      animation:topGlow 3s ease-in-out infinite;
+    }
+    @keyframes topGlow{0%,100%{opacity:.3;left:20%;right:20%}50%{opacity:1;left:5%;right:5%}}
+    /* Side accent */
+    .card::after{
+      content:'';position:absolute;left:0;top:20%;bottom:20%;width:1px;
+      background:linear-gradient(180deg,transparent,rgba(34,197,34,.4),transparent);
+    }
+
+    .card-eyebrow{
+      font-size:9px;letter-spacing:3px;color:var(--g3);
+      margin-bottom:4px;display:flex;align-items:center;gap:8px;
+    }
+    .card-eyebrow::before{content:'//'}
+    .card-title{
+      font-family:var(--display);font-size:18px;font-weight:700;
+      color:var(--g);letter-spacing:3px;margin-bottom:20px;
+      text-shadow:0 0 10px rgba(34,197,34,.4);
+    }
+
+    /* Tabs */
+    .tabs{display:flex;gap:0;border-bottom:1px solid rgba(34,197,34,.15);margin-bottom:20px}
+    .tab{
+      flex:1;padding:9px 0;background:none;border:none;border-bottom:2px solid transparent;
+      font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--g3);
+      cursor:pointer;transition:all .15s;margin-bottom:-1px;
+    }
+    .tab:hover{color:var(--g)}
+    .tab.active{color:var(--g);border-bottom-color:var(--g);text-shadow:0 0 8px rgba(34,197,34,.4)}
+
+    /* Tab content */
+    .tc{display:none}.tc.active{display:block}
+
+    /* Form fields */
+    .fg{margin-bottom:14px}
+    .fl{font-size:9px;letter-spacing:2px;color:var(--g3);display:block;margin-bottom:5px}
+    .fi{
+      width:100%;background:#030a03;
+      border:1px solid rgba(34,197,34,.2);border-radius:6px;
+      color:var(--g);font-family:var(--mono);font-size:13px;
+      padding:10px 12px;outline:none;transition:all .15s;
+    }
+    .fi:focus{border-color:var(--g);box-shadow:0 0 0 1px rgba(34,197,34,.1),0 0 12px rgba(34,197,34,.05)}
+    .fi::placeholder{color:#1a3a1a}
+    .iw{position:relative}
+    .iw .fi{padding-right:42px}
+    .eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--g3);padding:4px;display:flex;align-items:center;transition:color .15s}
+    .eye:hover{color:var(--g)}
+    .eye svg{width:16px;height:16px;display:block}
+
+    /* Password strength */
+    .sbox{background:#020602;border:1px solid rgba(34,197,34,.1);border-top:none;border-radius:0 0 6px 6px;padding:10px 12px;margin-top:-3px;margin-bottom:14px}
+    .sbar-t{height:3px;background:rgba(34,197,34,.1);border-radius:2px;margin-bottom:9px;overflow:hidden}
+    .sbar-f{height:100%;border-radius:2px;transition:width .3s,background .3s;width:0;background:var(--r)}
+    .sc{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--g3);margin-bottom:5px;transition:color .2s}
+    .sc:last-child{margin-bottom:0}.sc.met{color:var(--g)}
+    .si{width:12px;height:12px;flex-shrink:0}
+
+    /* Alert */
+    .alert{font-size:11px;padding:9px 12px;border-radius:6px;margin-bottom:12px;display:none;letter-spacing:.5px}
+    .alert.show{display:block}
+    .alert-error{background:#130202;border:1px solid rgba(197,34,34,.4);color:var(--r)}
+    .alert-success{background:#021302;border:1px solid rgba(34,197,34,.4);color:var(--g)}
+
+    /* Button */
+    .btn{
+      width:100%;padding:11px;border-radius:6px;
+      font-family:var(--mono);font-size:12px;letter-spacing:2px;
+      cursor:pointer;border:1px solid var(--g);background:var(--g4);color:var(--g);
+      transition:all .15s;margin-top:2px;position:relative;overflow:hidden;
+    }
+    .btn::before{
+      content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+      background:linear-gradient(90deg,transparent,rgba(34,197,34,.08),transparent);
+      transition:left .4s;
+    }
+    .btn:hover:not(:disabled)::before{left:100%}
+    .btn:hover:not(:disabled){background:#1a4a1a;box-shadow:0 0 20px rgba(34,197,34,.2)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+
+    /* Footer */
+    .card-footer{
+      display:flex;justify-content:center;gap:20px;margin-top:18px;
+      padding-top:16px;border-top:1px solid rgba(34,197,34,.08);
+    }
+    .foot-item{font-size:9px;letter-spacing:1px;color:var(--g3);display:flex;align-items:center;gap:4px}
+    .foot-dot{width:4px;height:4px;border-radius:50%;background:var(--g);opacity:.6}
+
+    /* ── Bottom status bar ── */
+    .status-bar{
+      display:flex;align-items:center;gap:24px;
+      margin-top:20px;font-size:9px;letter-spacing:2px;color:var(--g3);
+    }
+    .sb-item{display:flex;align-items:center;gap:6px}
+    .sb-dot{width:5px;height:5px;border-radius:50%}
+
+    @media(max-width:480px){
+      .brand{font-size:28px;letter-spacing:5px}
+      .card{padding:22px 18px 18px}
+      .status-bar{gap:14px;flex-wrap:wrap;justify-content:center}
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="skull-wrap">
+      <svg class="skull-svg" viewBox="0 0 100 115" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#22c522" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M50 8C22 8 10 28 10 48c0 16 8 28 20 32v18c0 3 3 6 6 6h28c3 0 6-3 6-6V80c12-4 20-16 20-32C90 28 78 8 50 8z" stroke-width="2.5"/>
+        <ellipse cx="34" cy="46" rx="12" ry="14" stroke-width="2"/>
+        <ellipse cx="66" cy="46" rx="12" ry="14" stroke-width="2"/>
+        <ellipse class="skull-eyes" cx="34" cy="46" rx="7" ry="8" fill="#22c522" fill-opacity=".7" stroke="none"/>
+        <ellipse class="skull-eyes" cx="66" cy="46" rx="7" ry="8" fill="#22c522" fill-opacity=".7" stroke="none"/>
+        <path d="M47 58l3 6 3-6" stroke-width="1.5"/>
+        <line x1="30" y1="90" x2="30" y2="104" stroke-width="1.5"/>
+        <line x1="42" y1="88" x2="42" y2="104" stroke-width="1.5"/>
+        <line x1="58" y1="88" x2="58" y2="104" stroke-width="1.5"/>
+        <line x1="70" y1="90" x2="70" y2="104" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div class="brand">CYBEROPS</div>
+    <div class="brand-sub">UNIFIED SECURITY PLATFORM</div>
+    <div class="version-tag"><span class="live-dot"></span>v3.0 · PRODUCTION · SECURE</div>
+    <div class="tagline"><span id="typed"></span><span class="caret"></span></div>
+  </div>
+
+  <!-- Auth card -->
+  <div class="card">
+    <div class="card-eyebrow">SECURE ACCESS PORTAL</div>
+    <div class="card-title" id="card-title">AUTHENTICATE</div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login',this)">[ LOGIN ]</button>
+      <button class="tab" onclick="switchTab('register',this)">[ REGISTER ]</button>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <!-- Login -->
+    <div id="tab-login" class="tc active">
+      <div class="fg">
+        <label class="fl">EMAIL ADDRESS</label>
+        <input type="email" id="l-email" class="fi" placeholder="operator@domain.com" autocomplete="email"/>
+      </div>
+      <div class="fg">
+        <label class="fl">PASSWORD</label>
+        <div class="iw">
+          <input type="password" id="l-pwd" class="fi" placeholder="Enter password" autocomplete="current-password"/>
+          <button type="button" class="eye" onclick="togglePwd('l-pwd',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn" id="l-btn" onclick="doLogin()">[ AUTHENTICATE ]</button>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" class="tc">
+      <div class="fg">
+        <label class="fl">OPERATOR HANDLE</label>
+        <input type="text" id="r-user" class="fi" placeholder="your_callsign" autocomplete="off"/>
+      </div>
+      <div class="fg">
+        <label class="fl">EMAIL ADDRESS</label>
+        <input type="email" id="r-email" class="fi" placeholder="operator@domain.com" autocomplete="off"/>
+      </div>
+      <div class="fg">
+        <label class="fl">PASSWORD</label>
+        <div class="iw">
+          <input type="password" id="r-pwd" class="fi" placeholder="Create strong password" autocomplete="new-password" oninput="chkStr(this.value)" style="border-radius:6px 6px 0 0"/>
+          <button type="button" class="eye" onclick="togglePwd('r-pwd',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="sbox">
+          <div class="sbar-t"><div class="sbar-f" id="sbar"></div></div>
+          <div class="sc" id="c-len"><svg class="si" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>8 or more characters</span></div>
+          <div class="sc" id="c-up"><svg class="si" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>Uppercase letter</span></div>
+          <div class="sc" id="c-lo"><svg class="si" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>Lowercase letter</span></div>
+          <div class="sc" id="c-num"><svg class="si" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>Number (0-9)</span></div>
+          <div class="sc" id="c-sp"><svg class="si" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>Special character</span></div>
+        </div>
+      </div>
+      <div class="fg">
+        <label class="fl">CONFIRM PASSWORD</label>
+        <div class="iw">
+          <input type="password" id="r-conf" class="fi" placeholder="Repeat password" autocomplete="new-password"/>
+          <button type="button" class="eye" onclick="togglePwd('r-conf',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn" id="r-btn" onclick="doRegister()">[ CREATE ACCOUNT ]</button>
+    </div>
+
+    <div class="card-footer">
+      <span class="foot-item"><span class="foot-dot"></span>TLS 1.3</span>
+      <span class="foot-item"><span class="foot-dot"></span>AES-256</span>
+      <span class="foot-item"><span class="foot-dot"></span>SUPABASE AUTH</span>
+    </div>
+  </div>
+
+  <!-- Bottom status -->
+  <div class="status-bar">
+    <span class="sb-item"><span class="sb-dot" style="background:#22c522;animation:blink 2s infinite"></span>SYSTEM ONLINE</span>
+    <span class="sb-item"><span class="sb-dot" style="background:#3a8add"></span>SUPABASE LIVE</span>
+    <span class="sb-item"><span class="sb-dot" style="background:#c5a522"></span>REALTIME ON</span>
+  </div>
+
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+  // ── Matrix rain ──
+  (function(){
+    const c=document.getElementById('matrix'),x=c.getContext('2d');
+    c.style.cssText='position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35';
+    function resize(){c.width=innerWidth;c.height=innerHeight}
+    resize();addEventListener('resize',resize);
+    const chars='アイウエカキABCDEF0123456789!@#$01ヒフホ'.split('');
+    let drops=[];
+    function init(){drops=Array.from({length:Math.floor(c.width/13)},()=>Math.random()*-80|0)}
+    init();addEventListener('resize',init);
+    setInterval(()=>{
+      x.fillStyle='rgba(1,6,1,0.13)';x.fillRect(0,0,c.width,c.height);
+      drops.forEach((y,i)=>{
+        const bright=Math.random()>.65;
+        x.fillStyle=bright?'#afffaf':'#22c522';
+        x.font=(bright?'bold ':'')+Math.floor(Math.random()*3+11)+'px monospace';
+        x.fillText(chars[Math.random()*chars.length|0],i*13,y*16);
+        if(y*16>c.height&&Math.random()>.96)drops[i]=0;
+        drops[i]++;
+      });
+    },50);
+    setTimeout(resize,500);
+  })();
+
+  // ── Auth redirect ──
+  (async()=>{const u=await getUser();if(u)location.href='dashboard.html';})();
+
+  // ── Typing animation ──
+  const phrases=['Penetration testing platform...','Your personal security arsenal...','CTF challenges & hacking lab...','Real-time threat intelligence...','Security training & certification...'];
+  let pi=0,ci=0,del=false;
+  function typeIt(){
+    const el=document.getElementById('typed'),cur=phrases[pi];
+    if(!del){el.textContent=cur.slice(0,++ci);if(ci===cur.length){del=true;setTimeout(typeIt,2200);return;}}
+    else{el.textContent=cur.slice(0,--ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}
+    setTimeout(typeIt,del?30:60);
+  }
+  typeIt();
+
+  // ── Tab switching ──
+  function switchTab(tab,btn){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tc').forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+tab).classList.add('active');
+    document.getElementById('card-title').textContent=tab==='login'?'AUTHENTICATE':'CREATE ACCOUNT';
+    document.getElementById('alert-box').classList.remove('show');
+  }
+
+  // ── Eye toggle ──
+  const EO=`<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  const EC=`<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+  function togglePwd(id,btn){const i=document.getElementById(id),s=btn.querySelector('svg');i.type=i.type==='password'?(s.innerHTML=EC,btn.style.color='#22c522','text'):(s.innerHTML=EO,btn.style.color='','password');}
+
+  // ── Password strength ──
+  const TICK=`<circle cx="6.5" cy="6.5" r="5.5" fill="#22c522" stroke="#22c522" stroke-width="1.5"/><path d="M4 6.5l1.8 1.8L9.5 4.5" stroke="#010601" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+  const CIRC=`<circle cx="6.5" cy="6.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/>`;
+  function chkStr(p){
+    const r={'c-len':p.length>=8,'c-up':/[A-Z]/.test(p),'c-lo':/[a-z]/.test(p),'c-num':/[0-9]/.test(p),'c-sp':/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p)};
+    let m=0;Object.entries(r).forEach(([id,ok])=>{document.getElementById(id).querySelector('svg').innerHTML=ok?TICK:CIRC;document.getElementById(id).classList.toggle('met',ok);if(ok)m++;});
+    const f=document.getElementById('sbar');f.style.width=(m/5*100)+'%';f.style.background=m<=1?'#c52222':m<=2?'#c57a22':m<=3?'#c5a522':'#22c522';
+  }
+
+  // ── Alert ──
+  function alert2(msg,type){const e=document.getElementById('alert-box');e.textContent=msg;e.className='alert alert-'+type+' show';}
+
+  // ── Login ──
+  async function doLogin(){
+    if(!sb){alert2('SUPABASE NOT LOADED — REFRESH','error');return;}
+    const em=document.getElementById('l-email').value.trim(),pw=document.getElementById('l-pwd').value;
+    if(!em||!pw){alert2('ENTER EMAIL AND PASSWORD','error');return;}
+    const btn=document.getElementById('l-btn');btn.textContent='[ AUTHENTICATING... ]';btn.disabled=true;
+    try{
+      const{data,error}=await sb.auth.signInWithPassword({email:em,password:pw});
+      if(error)throw error;
+      alert2('ACCESS GRANTED — LOADING...','success');
+      setTimeout(()=>location.href='dashboard.html',1000);
+    }catch(e){
+      alert2('ERROR: '+(e.message||'AUTHENTICATION FAILED').toUpperCase(),'error');
+      btn.textContent='[ AUTHENTICATE ]';btn.disabled=false;
+    }
+  }
+
+  // ── Register ──
+  async function doRegister(){
+    if(!sb){alert2('SUPABASE NOT LOADED — REFRESH','error');return;}
+    const un=document.getElementById('r-user').value.trim(),em=document.getElementById('r-email').value.trim();
+    const pw=document.getElementById('r-pwd').value,cf=document.getElementById('r-conf').value;
+    if(!un||!em||!pw||!cf){alert2('ALL FIELDS REQUIRED','error');return;}
+    if(un.length<3){alert2('HANDLE MUST BE 3+ CHARACTERS','error');return;}
+    if(pw!==cf){alert2('PASSWORDS DO NOT MATCH','error');return;}
+    if(pw.length<8){alert2('PASSWORD MUST BE 8+ CHARACTERS','error');return;}
+    if(!em.includes('@')||!em.includes('.')){alert2('ENTER A VALID EMAIL ADDRESS','error');return;}
+    const btn=document.getElementById('r-btn');btn.textContent='[ REGISTERING... ]';btn.disabled=true;
+    try{
+      const{data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{username:un}}});
+      if(error)throw error;
+      if(data.user&&data.session){
+        alert2('ACCOUNT CREATED — LOADING DASHBOARD...','success');
+        setTimeout(()=>location.href='dashboard.html',1000);
+      } else {
+        alert2('CHECK YOUR EMAIL TO CONFIRM YOUR ACCOUNT','success');
+        btn.textContent='[ CREATE ACCOUNT ]';btn.disabled=false;
+      }
+    }catch(e){
+      const msg=e.message||'REGISTRATION FAILED';
+      alert2('ERROR: '+msg.toUpperCase(),'error');
+      btn.textContent='[ CREATE ACCOUNT ]';btn.disabled=false;
+    }
+  }
+
+  // ── Enter key submit ──
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    const active=document.querySelector('.tc.active').id;
+    if(active==='tab-login')doLogin();else doRegister();
+  });
+</script>
+</body>
+</html>

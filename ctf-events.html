@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — CTF Events</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+  <style>
+    .event-card {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:6px;
+      padding:16px; margin-bottom:12px; cursor:pointer;
+      transition:border-color .15s, box-shadow .15s;
+    }
+    .event-card:hover { border-color:var(--green); box-shadow:0 0 12px rgba(34,197,34,.08); }
+    .event-card.active-event { border-color:var(--green); background:#040d04; }
+    .event-card.ended { opacity:.6; cursor:default; }
+
+    .event-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .event-title { color:var(--green); font-family:var(--font-display); font-size:14px; font-weight:700; letter-spacing:1px; flex:1; }
+
+    .countdown-display {
+      display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px;
+    }
+    .countdown-cell {
+      text-align:center; background:var(--bg-card2); border:1px solid var(--border);
+      border-radius:5px; padding:10px 8px;
+    }
+    .countdown-num { font-family:var(--font-display); font-size:28px; font-weight:700; color:var(--green); }
+    .countdown-lbl { font-size:9px; color:var(--green-dim); letter-spacing:1.5px; margin-top:2px; }
+
+    .challenge-row {
+      display:flex; align-items:center; gap:10px; padding:10px 14px;
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:5px;
+      margin-bottom:8px; transition:all .15s;
+    }
+    .challenge-row:hover { border-color:var(--green-dim); }
+    .challenge-row.solved-row { border-color:var(--green-dim); opacity:.7; }
+    .challenge-row.first-blood { border-color:#ff4444; background:rgba(255,34,34,.04); }
+
+    .lb-live { animation:lbPulse 2s ease-in-out infinite; }
+    @keyframes lbPulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+    .pts-decay {
+      font-size:10px; color:var(--green-dim); display:flex; align-items:center; gap:4px;
+    }
+    .pts-decay .current-pts { color:var(--yellow); font-family:var(--font-display); font-size:14px; font-weight:700; }
+    .pts-decay .orig-pts { text-decoration:line-through; color:#1a5a1a; font-size:10px; }
+
+    .blood-badge {
+      font-size:9px; padding:2px 7px; border-radius:2px;
+      background:rgba(255,34,34,.2); color:#ff4444; border:1px solid rgba(255,34,34,.4);
+      letter-spacing:.5px;
+    }
+
+    .event-tabs { display:flex; gap:6px; margin-bottom:14px; }
+    .event-tab {
+      padding:6px 14px; font-family:var(--font-mono); font-size:11px;
+      letter-spacing:1px; cursor:pointer; border-radius:3px;
+      border:1px solid var(--border); color:var(--green-dim);
+      background:var(--bg-card); transition:all .15s;
+    }
+    .event-tab.active { border-color:var(--green); color:var(--green); background:#0d1f0d; }
+
+    .team-slot {
+      padding:10px 14px; background:var(--bg-card2); border:1px solid var(--border);
+      border-radius:5px; margin-bottom:8px; display:flex; align-items:center; gap:10px;
+    }
+    .team-crown { font-size:16px; width:24px; text-align:center; flex-shrink:0; }
+
+    .admin-form { background:var(--bg-card2); border:1px solid var(--border); border-radius:5px; padding:14px; margin-top:12px; }
+
+    .flag-submit { display:flex; gap:8px; }
+    .flag-input { flex:1; background:#010301; border:1px solid var(--border); border-radius:4px;
+      color:var(--green); font-family:var(--font-mono); font-size:12px; padding:8px 12px; outline:none; }
+    .flag-input:focus { border-color:var(--cyan); }
+
+    .event-status-bar {
+      display:flex; gap:8px; align-items:center; padding:8px 14px;
+      background:#020a02; border-radius:5px; margin-bottom:10px;
+    }
+    .status-light { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .status-light.live { background:var(--green); animation:blink 1.5s step-end infinite; }
+    .status-light.upcoming { background:var(--yellow); }
+    .status-light.ended { background:var(--border); }
+  </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item active"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>COMPETITION MODE</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">// LIVE CTF EVENTS — COMPETITION ARENA</span>
+      <div class="topbar-right">
+        <span class="tb-item">LIVE <span id="tb-live" style="color:var(--green)">0</span></span>
+        <span class="tb-item">MY PTS <span id="tb-mypts" style="color:var(--yellow)">0</span></span>
+        <span class="tb-item">RANK <span id="tb-rank" style="color:var(--yellow)">#--</span></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="event-tabs mt">
+        <button class="event-tab active" onclick="switchEventTab('events',this)">EVENTS</button>
+        <button class="event-tab" onclick="switchEventTab('compete',this)">COMPETE</button>
+        <button class="event-tab" onclick="switchEventTab('leaderboard',this)">LEADERBOARD</button>
+        <button class="event-tab" onclick="switchEventTab('results',this)">RESULTS</button>
+        <button class="event-tab" onclick="switchEventTab('admin',this)">CREATE EVENT</button>
+      </div>
+
+      <!-- EVENTS tab -->
+      <div id="etab-events">
+        <div class="g4">
+          <div class="stat-box"><div class="stat-n" id="s-live" style="color:var(--green)">1</div><div class="stat-l">LIVE NOW</div></div>
+          <div class="stat-box"><div class="stat-n" id="s-upcoming" style="color:var(--yellow)">2</div><div class="stat-l">UPCOMING</div></div>
+          <div class="stat-box"><div class="stat-n" id="s-ended">5</div><div class="stat-l">COMPLETED</div></div>
+          <div class="stat-box"><div class="stat-n" id="s-participants" style="color:var(--cyan)">247</div><div class="stat-l">COMPETITORS</div></div>
+        </div>
+
+        <div class="mt" id="events-list"></div>
+      </div>
+
+      <!-- COMPETE tab -->
+      <div id="etab-compete" style="display:none">
+        <div id="no-event-msg" style="text-align:center;padding:40px;color:var(--green-dim);font-size:12px">
+          No active event selected. Go to EVENTS tab and join a live event.
+        </div>
+        <div id="compete-content" style="display:none">
+          <div class="g2" style="gap:14px">
+            <div>
+              <!-- Countdown -->
+              <div class="card" style="margin-bottom:14px">
+                <div class="card-title">// COUNTDOWN TO END <span class="badge badge-red lb-live">LIVE</span></div>
+                <div class="countdown-display">
+                  <div class="countdown-cell"><div class="countdown-num" id="cd-h">00</div><div class="countdown-lbl">HOURS</div></div>
+                  <div class="countdown-cell"><div class="countdown-num" id="cd-m">00</div><div class="countdown-lbl">MINS</div></div>
+                  <div class="countdown-cell"><div class="countdown-num" id="cd-s">00</div><div class="countdown-lbl">SECS</div></div>
+                  <div class="countdown-cell"><div class="countdown-num" id="cd-pct" style="font-size:18px">0%</div><div class="countdown-lbl">ELAPSED</div></div>
+                </div>
+                <div id="active-event-title" style="font-family:var(--font-display);color:var(--green);font-size:13px;letter-spacing:1px"></div>
+              </div>
+
+              <!-- Challenges -->
+              <div class="card">
+                <div class="card-title">// CHALLENGES <span class="badge badge-yellow" id="solved-count">0/0 SOLVED</span></div>
+                <div id="compete-challenges"></div>
+
+                <!-- Flag submit -->
+                <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+                  <div class="form-label">SUBMIT FLAG</div>
+                  <div class="flag-submit">
+                    <select id="flag-challenge" class="form-select" style="width:auto;min-width:160px"></select>
+                    <input type="text" id="flag-input" class="flag-input" placeholder="FLAG{...}">
+                    <button class="btn btn-primary btn-sm" onclick="submitFlag()">SUBMIT</button>
+                  </div>
+                  <div id="flag-result" class="alert" style="margin-top:8px;margin-bottom:0"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mini leaderboard -->
+            <div class="card">
+              <div class="card-title">// LIVE LEADERBOARD <span class="badge badge-green lb-live">UPDATES LIVE</span></div>
+              <div style="font-size:10px;color:var(--green-dim);margin-bottom:10px">Refreshes every 30 seconds</div>
+              <div id="live-lb"></div>
+              <div style="margin-top:10px;font-size:10px;color:#1a5a1a;text-align:center" id="lb-update-time"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEADERBOARD tab -->
+      <div id="etab-leaderboard" style="display:none">
+        <div class="card mt">
+          <div class="card-title">// GLOBAL CTF LEADERBOARD <span class="badge badge-yellow">ALL-TIME</span></div>
+          <div id="global-lb"></div>
+        </div>
+      </div>
+
+      <!-- RESULTS tab -->
+      <div id="etab-results" style="display:none">
+        <div class="card mt">
+          <div class="card-title">// PAST EVENT RESULTS</div>
+          <div id="past-results"></div>
+        </div>
+      </div>
+
+      <!-- ADMIN/CREATE tab -->
+      <div id="etab-admin" style="display:none">
+        <div class="card mt">
+          <div class="card-title">// CREATE CTF EVENT</div>
+          <div style="font-size:11px;color:var(--green-dim);margin-bottom:14px">
+            Schedule a new CTF competition. Events stored locally — integrate with Supabase for multi-user events.
+          </div>
+          <div class="g2" style="gap:14px">
+            <div>
+              <div class="form-group">
+                <label class="form-label">EVENT NAME</label>
+                <input type="text" id="ev-name" class="form-input" placeholder="CyberOps Winter CTF 2025">
+              </div>
+              <div class="form-group">
+                <label class="form-label">DESCRIPTION</label>
+                <textarea id="ev-desc" class="form-textarea" placeholder="Brief event description..."></textarea>
+              </div>
+              <div class="g2" style="gap:10px">
+                <div class="form-group">
+                  <label class="form-label">START DATE/TIME</label>
+                  <input type="datetime-local" id="ev-start" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">END DATE/TIME</label>
+                  <input type="datetime-local" id="ev-end" class="form-input">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">POINT DECAY MODE</label>
+                <select id="ev-decay" class="form-select">
+                  <option value="static">Static — fixed points</option>
+                  <option value="decay">Dynamic — points decay over time</option>
+                  <option value="firstblood">First Blood — bonus +50 pts for first solve</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="createEvent()">[ CREATE EVENT ]</button>
+              <div id="ev-alert" class="alert" style="margin-top:10px;margin-bottom:0"></div>
+            </div>
+            <div>
+              <div class="admin-form">
+                <div class="card-title" style="margin-bottom:10px">// ADD CHALLENGES</div>
+                <div id="event-challenges-list" style="margin-bottom:10px"></div>
+                <div class="form-group">
+                  <label class="form-label">CHALLENGE NAME</label>
+                  <input type="text" id="ch-name" class="form-input" placeholder="Web 1 — Login Bypass">
+                </div>
+                <div class="g2" style="gap:8px">
+                  <div class="form-group">
+                    <label class="form-label">CATEGORY</label>
+                    <select id="ch-cat" class="form-select">
+                      <option>WEB</option><option>CRYPTO</option><option>FORENSICS</option>
+                      <option>PWN</option><option>OSINT</option><option>MISC</option><option>RE</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">POINTS</label>
+                    <input type="number" id="ch-pts" class="form-input" value="100" min="1">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">FLAG</label>
+                  <input type="text" id="ch-flag" class="form-input" placeholder="FLAG{example_flag_here}">
+                </div>
+                <button class="btn btn-sm btn-yellow" onclick="addChallenge()">+ ADD CHALLENGE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="bottombar">
+      <span class="bb">MODE <span>COMPETITION</span></span>
+      <span class="bb">LB REFRESH <span>30s</span></span>
+      <span class="bb">DECAY <span>ENABLED</span></span>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+let currentUser = null;
+let activeEventId = null;
+let countdownInterval = null;
+let lbInterval = null;
+let newChallenges = [];
+
+// Seed data
+const DEMO_EVENTS = [
+  {
+    id: 'evt-demo-live',
+    name: 'CyberOps Winter Siege 2025',
+    description: '24-hour CTF covering web, crypto, forensics and binary exploitation.',
+    start: new Date(Date.now() - 3 * 3600000).toISOString(),
+    end:   new Date(Date.now() + 21 * 3600000).toISOString(),
+    decay: 'firstblood',
+    challenges: [
+      { id:'c1', name:'Cookie Monster',   cat:'WEB',      pts:100, maxPts:100, flag:'FLAG{c00ki3_m0nst3r}', solvers:[], firstBlood:null },
+      { id:'c2', name:'SQL Santa',         cat:'WEB',      pts:150, maxPts:200, flag:'FLAG{sql_santa_2025}', solvers:['player3','player7'], firstBlood:'player3' },
+      { id:'c3', name:'XOR Mas Tree',      cat:'CRYPTO',   pts:200, maxPts:250, flag:'FLAG{xormas_tree}',    solvers:['player1'], firstBlood:'player1' },
+      { id:'c4', name:'Lost in the Snow',  cat:'FORENSICS',pts:175, maxPts:175, flag:'FLAG{snowflake_pcap}', solvers:[], firstBlood:null },
+      { id:'c5', name:'Naughty Buffer',    cat:'PWN',      pts:300, maxPts:400, flag:'FLAG{pwn_santa_bof}',  solvers:['player1','player2'], firstBlood:'player2' },
+      { id:'c6', name:'OSINT Reindeer',    cat:'OSINT',    pts:125, maxPts:125, flag:'FLAG{reindeer_doxx}',  solvers:['player1','player3','player5'], firstBlood:'player1' },
+    ],
+    leaderboard: [
+      { user:'h4x0rpr1me',  pts:675, solves:4 },
+      { user:'null_ptr',    pts:500, solves:3 },
+      { user:'ghost_shell', pts:450, solves:3 },
+      { user:'r00t_cause',  pts:325, solves:2 },
+      { user:'cyberw0lf',   pts:225, solves:2 },
+    ]
+  },
+  {
+    id: 'evt-upcoming-1',
+    name: 'CyberOps Spring Challenge',
+    description: 'Beginner-friendly CTF. No experience needed.',
+    start: new Date(Date.now() + 2 * 24 * 3600000).toISOString(),
+    end:   new Date(Date.now() + 3 * 24 * 3600000).toISOString(),
+    decay: 'static', challenges: [], leaderboard: []
+  },
+  {
+    id: 'evt-upcoming-2',
+    name: 'Binary Mayhem IV',
+    description: 'Advanced reverse engineering and binary exploitation.',
+    start: new Date(Date.now() + 7 * 24 * 3600000).toISOString(),
+    end:   new Date(Date.now() + 9 * 24 * 3600000).toISOString(),
+    decay: 'decay', challenges: [], leaderboard: []
+  }
+];
+
+(async () => {
+  currentUser = await requireAuth();
+  if (!currentUser) return;
+  document.getElementById('sb-username').textContent = currentUser.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.07);
+  renderEventsList();
+  renderGlobalLB();
+  renderPastResults();
+  document.getElementById('tb-live').textContent = '1';
+  // Set default datetime values
+  const now = new Date(); now.setMinutes(0,0,0);
+  document.getElementById('ev-start').value = now.toISOString().slice(0,16);
+  const end = new Date(now.getTime() + 24*3600000);
+  document.getElementById('ev-end').value = end.toISOString().slice(0,16);
+})();
+
+function getEvents() {
+  const stored = JSON.parse(localStorage.getItem('ctf_events') || '[]');
+  return [...DEMO_EVENTS, ...stored];
+}
+
+function eventStatus(ev) {
+  const now = Date.now();
+  const s = new Date(ev.start).getTime();
+  const e = new Date(ev.end).getTime();
+  if (now < s) return 'upcoming';
+  if (now >= s && now <= e) return 'live';
+  return 'ended';
+}
+
+function renderEventsList() {
+  const events = getEvents();
+  const live = events.filter(e => eventStatus(e) === 'live');
+  const upcoming = events.filter(e => eventStatus(e) === 'upcoming');
+  const ended = events.filter(e => eventStatus(e) === 'ended');
+
+  document.getElementById('s-live').textContent = live.length;
+  document.getElementById('s-upcoming').textContent = upcoming.length;
+
+  const container = document.getElementById('events-list');
+  const renderGroup = (label, list, status) => {
+    if (!list.length) return '';
+    return `<div style="font-size:10px;color:var(--green-dim);letter-spacing:1.5px;margin:14px 0 8px">${label}</div>` +
+      list.map(ev => {
+        const statusMap = { live:'LIVE', upcoming:'UPCOMING', ended:'ENDED' };
+        const colorMap = { live:'var(--green)', upcoming:'var(--yellow)', ended:'var(--border)' };
+        const dur = Math.round((new Date(ev.end) - new Date(ev.start)) / 3600000);
+        return `<div class="event-card ${status === 'live' ? 'active-event' : status === 'ended' ? 'ended' : ''}" onclick="${status === 'live' ? `joinEvent('${ev.id}')` : ''}">
+          <div class="event-header">
+            <div class="event-status-bar" style="flex:1;background:transparent;padding:0;border:none">
+              <div class="status-light ${status}"></div>
+              <div class="event-title">${ev.name}</div>
+            </div>
+            <span class="badge badge-${status === 'live' ? 'green' : status === 'upcoming' ? 'yellow' : 'blue'}">${statusMap[status]}</span>
+          </div>
+          <div style="font-size:11px;color:var(--green-dim);margin-bottom:8px">${ev.description}</div>
+          <div style="display:flex;gap:14px;font-size:10px;color:#1a5a1a">
+            <span>📅 ${new Date(ev.start).toLocaleDateString()} ${new Date(ev.start).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
+            <span>⏱ ${dur}h duration</span>
+            <span>🏆 ${ev.challenges.length} challenges</span>
+            <span>👥 ${ev.leaderboard.length} teams</span>
+          </div>
+          ${status === 'live' ? '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" onclick="event.stopPropagation();joinEvent(\''+ev.id+'\')">[ JOIN EVENT ]</button></div>' : ''}
+        </div>`;
+      }).join('');
+  };
+
+  container.innerHTML = renderGroup('🔴 LIVE EVENTS', live, 'live') +
+                         renderGroup('🟡 UPCOMING', upcoming, 'upcoming') +
+                         renderGroup('⬛ PAST EVENTS', ended.slice(0,3), 'ended');
+}
+
+function joinEvent(eventId) {
+  const events = getEvents();
+  const ev = events.find(e => e.id === eventId);
+  if (!ev) return;
+  activeEventId = eventId;
+  switchEventTab('compete', document.querySelectorAll('.event-tab')[1]);
+  renderCompete(ev);
+}
+
+function renderCompete(ev) {
+  document.getElementById('no-event-msg').style.display = 'none';
+  document.getElementById('compete-content').style.display = 'block';
+  document.getElementById('active-event-title').textContent = ev.name;
+
+  // Countdown
+  if (countdownInterval) clearInterval(countdownInterval);
+  const endTime = new Date(ev.end).getTime();
+  const startTime = new Date(ev.start).getTime();
+  const totalDur = endTime - startTime;
+
+  function updateCountdown() {
+    const remaining = endTime - Date.now();
+    if (remaining <= 0) {
+      clearInterval(countdownInterval);
+      ['cd-h','cd-m','cd-s'].forEach(id => document.getElementById(id).textContent = '00');
+      document.getElementById('cd-pct').textContent = '100%';
+      return;
+    }
+    const h = Math.floor(remaining / 3600000);
+    const m = Math.floor((remaining % 3600000) / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    document.getElementById('cd-h').textContent = String(h).padStart(2,'0');
+    document.getElementById('cd-m').textContent = String(m).padStart(2,'0');
+    document.getElementById('cd-s').textContent = String(s).padStart(2,'0');
+    const elapsed = Math.round((Date.now() - startTime) / totalDur * 100);
+    document.getElementById('cd-pct').textContent = Math.min(100, elapsed) + '%';
+  }
+  updateCountdown();
+  countdownInterval = setInterval(updateCountdown, 1000);
+
+  // Render challenges
+  const myData = JSON.parse(localStorage.getItem('my_event_' + ev.id) || '{"solved":[]}');
+  const flagSelect = document.getElementById('flag-challenge');
+  flagSelect.innerHTML = '';
+  let solvedCount = myData.solved.length;
+
+  document.getElementById('compete-challenges').innerHTML = ev.challenges.map(ch => {
+    const solved = myData.solved.includes(ch.id);
+    const hasBlood = ch.firstBlood;
+    const decayedPts = ev.decay === 'decay'
+      ? Math.max(50, ch.maxPts - Math.floor(ch.solvers.length * 20))
+      : ch.pts;
+    const opt = document.createElement('option');
+    opt.value = ch.id; opt.textContent = ch.name;
+    flagSelect.appendChild(opt);
+    return `<div class="challenge-row ${solved ? 'solved-row' : ''} ${hasBlood && !solved ? 'first-blood' : ''}">
+      <span class="cat cat-${ch.cat}">${ch.cat}</span>
+      <span style="flex:1;color:${solved ? 'var(--green-dim)' : 'var(--green)'};font-size:13px">${ch.name} ${solved ? '✓' : ''}</span>
+      ${hasBlood && !solved ? `<span class="blood-badge">FIRST BLOOD TAKEN</span>` : ''}
+      <div class="pts-decay">
+        ${ev.decay !== 'static' && ch.solvers.length > 0 ? `<span class="orig-pts">${ch.maxPts}</span>` : ''}
+        <span class="current-pts">${decayedPts}</span>
+        <span>PTS</span>
+      </div>
+      <span style="font-size:10px;color:var(--green-dim)">${ch.solvers.length} solves</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('solved-count').textContent = `${solvedCount}/${ev.challenges.length} SOLVED`;
+  document.getElementById('tb-mypts').textContent = myData.solved.reduce((acc, id) => {
+    const ch = ev.challenges.find(c => c.id === id);
+    return acc + (ch ? ch.pts : 0);
+  }, 0);
+
+  // Leaderboard
+  renderLiveLB(ev);
+  if (lbInterval) clearInterval(lbInterval);
+  lbInterval = setInterval(() => renderLiveLB(ev), 30000);
+}
+
+function renderLiveLB(ev) {
+  const myName = currentUser?.email?.split('@')[0] || 'you';
+  const myData = JSON.parse(localStorage.getItem('my_event_' + ev.id) || '{"solved":[]}');
+  const myPts = myData.solved.reduce((acc, id) => {
+    const ch = ev.challenges.find(c => c.id === id);
+    return acc + (ch ? ch.pts : 0);
+  }, 0);
+
+  let lb = [...ev.leaderboard];
+  if (myPts > 0 && !lb.find(e => e.user === myName)) {
+    lb.push({ user: myName, pts: myPts, solves: myData.solved.length });
+  }
+  lb.sort((a,b) => b.pts - a.pts);
+  const myRank = lb.findIndex(e => e.user === myName) + 1;
+  if (myRank) { document.getElementById('tb-rank').textContent = '#' + myRank; }
+
+  document.getElementById('live-lb').innerHTML = lb.slice(0,8).map((e,i) => {
+    const isMe = e.user === myName;
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+    return `<div class="lb-row ${isMe ? 'me' : ''}">
+      <span class="lb-rank">${medal}</span>
+      <span class="lb-name">${e.user}${isMe ? ' ◀' : ''}</span>
+      <span style="font-size:10px;color:var(--green-dim);margin-right:10px">${e.solves} solves</span>
+      <span class="lb-xp">${e.pts} pts</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('lb-update-time').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+}
+
+function submitFlag() {
+  const events = getEvents();
+  const ev = events.find(e => e.id === activeEventId);
+  if (!ev) return;
+  const challengeId = document.getElementById('flag-challenge').value;
+  const submitted = document.getElementById('flag-input').value.trim();
+  const ch = ev.challenges.find(c => c.id === challengeId);
+  if (!ch) return;
+
+  const myData = JSON.parse(localStorage.getItem('my_event_' + ev.id) || '{"solved":[]}');
+
+  if (myData.solved.includes(challengeId)) {
+    showAlert('flag-result', 'ALREADY SOLVED', 'error');
+    return;
+  }
+  if (submitted === ch.flag) {
+    myData.solved.push(challengeId);
+    localStorage.setItem('my_event_' + ev.id, JSON.stringify(myData));
+    const pts = ch.pts;
+    const total = myData.solved.reduce((acc, id) => {
+      const c = ev.challenges.find(x => x.id === id);
+      return acc + (c ? c.pts : 0);
+    }, 0);
+    document.getElementById('tb-mypts').textContent = total;
+    showAlert('flag-result', `✓ CORRECT! +${pts} PTS — "${ch.name}" solved`, 'success');
+    renderCompete(ev);
+    document.getElementById('flag-input').value = '';
+  } else {
+    showAlert('flag-result', 'INCORRECT FLAG — Try again', 'error');
+  }
+}
+
+function renderGlobalLB() {
+  const entries = [
+    { rank:1, user:'h4x0rpr1me', pts:12850, events:14, solved:78 },
+    { rank:2, user:'null_ptr',   pts:11200, events:12, solved:65 },
+    { rank:3, user:'ghost_shell',pts:9740,  events:11, solved:59 },
+    { rank:4, user:'r00t_cause', pts:8500,  events:9,  solved:50 },
+    { rank:5, user:'cyberw0lf',  pts:7200,  events:8,  solved:44 },
+    { rank:6, user:'buf_ov3r',   pts:5900,  events:7,  solved:36 },
+    { rank:7, user:'xss_witch',  pts:4300,  events:6,  solved:28 },
+    { rank:8, user:'exploit_dev',pts:3100,  events:5,  solved:21 },
+  ];
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('global-lb').innerHTML = entries.map((e,i) => `
+    <div class="lb-row" style="margin-bottom:7px">
+      <span class="lb-rank" style="font-size:14px;width:32px">${medals[i] || '#'+e.rank}</span>
+      <span class="lb-name">${e.user}</span>
+      <span style="font-size:10px;color:var(--green-dim);margin-right:14px">${e.events} events · ${e.solved} solves</span>
+      <span class="lb-xp">${e.pts.toLocaleString()} pts</span>
+    </div>`).join('');
+}
+
+function renderPastResults() {
+  document.getElementById('past-results').innerHTML = `
+    <div style="color:#1a5a1a;font-size:11px;text-align:center;padding:20px 0">
+      No past events to show. Completed events will appear here with full rankings.
+    </div>`;
+}
+
+// Admin
+function addChallenge() {
+  const name = document.getElementById('ch-name').value.trim();
+  const cat  = document.getElementById('ch-cat').value;
+  const pts  = parseInt(document.getElementById('ch-pts').value) || 100;
+  const flag = document.getElementById('ch-flag').value.trim();
+  if (!name || !flag) { alert('Fill name and flag'); return; }
+  newChallenges.push({ id: 'nc-' + Date.now(), name, cat, pts, maxPts:pts, flag, solvers:[], firstBlood:null });
+  document.getElementById('ch-name').value = '';
+  document.getElementById('ch-flag').value = '';
+  renderNewChallenges();
+}
+
+function renderNewChallenges() {
+  document.getElementById('event-challenges-list').innerHTML = newChallenges.map((c,i) =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#010301;border-radius:4px;margin-bottom:5px;font-size:11px">
+      <span class="cat cat-${c.cat}" style="font-size:9px">${c.cat}</span>
+      <span style="flex:1;color:var(--green)">${c.name}</span>
+      <span style="color:var(--yellow);font-family:var(--font-display)">${c.pts}</span>
+      <button onclick="newChallenges.splice(${i},1);renderNewChallenges()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px">✕</button>
+    </div>`).join('');
+}
+
+function createEvent() {
+  const name = document.getElementById('ev-name').value.trim();
+  const desc = document.getElementById('ev-desc').value.trim();
+  const start = document.getElementById('ev-start').value;
+  const end   = document.getElementById('ev-end').value;
+  const decay = document.getElementById('ev-decay').value;
+  if (!name || !start || !end) { showAlert('ev-alert', 'Fill all required fields', 'error'); return; }
+  if (new Date(end) <= new Date(start)) { showAlert('ev-alert', 'End time must be after start', 'error'); return; }
+  if (!newChallenges.length) { showAlert('ev-alert', 'Add at least one challenge', 'error'); return; }
+  const ev = { id: 'evt-' + Date.now(), name, description:desc, start, end, decay, challenges: newChallenges, leaderboard: [] };
+  const stored = JSON.parse(localStorage.getItem('ctf_events') || '[]');
+  stored.push(ev);
+  localStorage.setItem('ctf_events', JSON.stringify(stored));
+  newChallenges = [];
+  renderNewChallenges();
+  showAlert('ev-alert', `✓ EVENT "${name}" CREATED`, 'success');
+  renderEventsList();
+}
+
+function switchEventTab(name, btn) {
+  ['events','compete','leaderboard','results','admin'].forEach(t => {
+    document.getElementById('etab-' + t).style.display = 'none';
+  });
+  document.querySelectorAll('.event-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('etab-' + name).style.display = 'block';
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

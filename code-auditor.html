@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — Code Auditor</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+  <style>
+    .audit-layout { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+    @media(max-width:1100px){ .audit-layout { grid-template-columns:1fr; } }
+
+    .code-editor {
+      width:100%; min-height:340px; background:#010301; border:1px solid var(--border);
+      border-radius:5px; color:#c8ffc8; font-family:var(--font-mono); font-size:12px;
+      padding:14px; outline:none; resize:vertical; transition:border-color .15s;
+      line-height:1.7; tab-size:2;
+    }
+    .code-editor:focus { border-color:var(--green); box-shadow:0 0 0 1px rgba(34,197,34,.1); }
+
+    .lang-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+    .lang-btn {
+      padding:4px 12px; font-family:var(--font-mono); font-size:11px; letter-spacing:.5px;
+      border-radius:3px; cursor:pointer; border:1px solid var(--border);
+      color:var(--green-dim); background:var(--bg-card2); transition:all .15s;
+    }
+    .lang-btn.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,191,255,.06); }
+    .lang-btn:hover:not(.active) { border-color:var(--green-dim); color:var(--green); }
+
+    .vuln-card {
+      background:var(--bg-card2); border-radius:5px; padding:14px;
+      margin-bottom:10px; border-left:3px solid var(--border);
+      animation:slideIn .2s ease;
+    }
+    @keyframes slideIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:none; } }
+    .vuln-card.sev-critical { border-left-color:#ff2222; }
+    .vuln-card.sev-high     { border-left-color:var(--red); }
+    .vuln-card.sev-medium   { border-left-color:var(--yellow); }
+    .vuln-card.sev-low      { border-left-color:var(--green); }
+
+    .vuln-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .vuln-name { color:var(--green); font-size:13px; flex:1; }
+    .vuln-line { font-size:10px; color:var(--green-dim); padding:2px 6px; background:#010301; border-radius:3px; }
+
+    .sev-tag { font-size:10px; padding:2px 8px; border-radius:2px; font-weight:700; }
+    .sev-tag.critical { background:rgba(255,34,34,.2); color:#ff4444; border:1px solid #ff2222; }
+    .sev-tag.high     { background:rgba(197,34,34,.15); color:var(--red); border:1px solid var(--red-dim); }
+    .sev-tag.medium   { background:rgba(197,165,34,.15); color:var(--yellow); border:1px solid var(--yellow-dim); }
+    .sev-tag.low      { background:rgba(34,197,34,.1); color:var(--green); border:1px solid var(--green-dim); }
+
+    .vuln-desc { font-size:11px; color:var(--green-dim); line-height:1.7; margin-bottom:8px; }
+    .vuln-fix { background:#010301; border:1px solid rgba(34,197,34,.15); border-radius:4px; padding:8px 10px; font-size:11px; color:var(--green); line-height:1.7; }
+    .vuln-fix strong { color:var(--cyan); }
+
+    .scan-score-ring {
+      width:90px; height:90px; flex-shrink:0;
+      position:relative; display:flex; align-items:center; justify-content:center;
+    }
+    .score-svg { width:90px; height:90px; transform:rotate(-90deg); }
+    .score-text { position:absolute; text-align:center; }
+    .score-num { font-family:var(--font-display); font-size:20px; font-weight:700; }
+    .score-lbl { font-size:9px; color:var(--green-dim); letter-spacing:1px; }
+
+    .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
+    .sev-count { text-align:center; padding:10px 8px; background:#010301; border-radius:5px; border:1px solid var(--border); }
+    .sev-count .num { font-family:var(--font-display); font-size:22px; font-weight:700; }
+    .sev-count .lbl { font-size:9px; letter-spacing:1px; margin-top:2px; }
+
+    .thinking-anim { display:flex; gap:5px; align-items:center; padding:20px 0; }
+    .thinking-anim span { width:7px; height:7px; border-radius:50%; background:var(--cyan); animation:thinkPulse .8s infinite; }
+    .thinking-anim span:nth-child(2) { animation-delay:.15s; }
+    .thinking-anim span:nth-child(3) { animation-delay:.3s; }
+    @keyframes thinkPulse { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
+
+    .snippet-template { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .snippet-btn {
+      font-size:10px; padding:3px 9px; border:1px solid var(--border); background:var(--bg-card2);
+      color:var(--green-dim); border-radius:3px; cursor:pointer; font-family:var(--font-mono);
+      transition:all .15s;
+    }
+    .snippet-btn:hover { border-color:var(--yellow); color:var(--yellow); }
+  </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item active"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>GHOST-AI ONLINE</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">// CODE AUDITOR — AI VULNERABILITY SCANNER</span>
+      <div class="topbar-right">
+        <span class="tb-item">SCANS <span id="tb-scans">0</span></span>
+        <span class="tb-item">MODEL <span style="color:var(--cyan)">GHOST-AI</span></span>
+        <span class="tb-item">ENGINE <span>CLAUDE</span></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="audit-layout">
+        <!-- Left: Code input -->
+        <div>
+          <div class="card">
+            <div class="card-title">// PASTE CODE SNIPPET <span class="badge badge-cyan">AI ANALYSIS</span></div>
+
+            <div class="lang-bar">
+              <span style="font-size:10px;color:var(--green-dim);display:flex;align-items:center;margin-right:2px">LANG:</span>
+              <button class="lang-btn active" onclick="setLang(this,'php')">PHP</button>
+              <button class="lang-btn" onclick="setLang(this,'python')">PYTHON</button>
+              <button class="lang-btn" onclick="setLang(this,'javascript')">JAVASCRIPT</button>
+              <button class="lang-btn" onclick="setLang(this,'java')">JAVA</button>
+              <button class="lang-btn" onclick="setLang(this,'c')">C/C++</button>
+              <button class="lang-btn" onclick="setLang(this,'sql')">SQL</button>
+            </div>
+
+            <textarea id="code-input" class="code-editor"
+              placeholder="// Paste your code snippet here...
+// GHOST-AI will scan for:
+//  • Injection vulnerabilities (SQLi, XSS, Command Injection)
+//  • Authentication & session issues
+//  • Insecure cryptography
+//  • Sensitive data exposure
+//  • Access control weaknesses
+//  • Memory safety issues (C/C++)
+//  • Business logic flaws"></textarea>
+
+            <div style="margin-top:8px">
+              <div style="font-size:10px;color:var(--green-dim);margin-bottom:6px">LOAD VULNERABLE EXAMPLE:</div>
+              <div class="snippet-template">
+                <button class="snippet-btn" onclick="loadSnippet('php-sqli')">PHP SQLi</button>
+                <button class="snippet-btn" onclick="loadSnippet('php-xss')">PHP XSS</button>
+                <button class="snippet-btn" onclick="loadSnippet('python-cmdi')">Python CMDi</button>
+                <button class="snippet-btn" onclick="loadSnippet('js-eval')">JS eval()</button>
+                <button class="snippet-btn" onclick="loadSnippet('c-buffer')">C buffer overflow</button>
+                <button class="snippet-btn" onclick="loadSnippet('java-deser')">Java deserialisation</button>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn btn-primary" id="scan-btn" onclick="runAudit()" style="flex:1">
+                [ SCAN FOR VULNERABILITIES ]
+              </button>
+              <button class="btn btn-sm" onclick="clearAudit()" style="border:1px solid var(--border);color:var(--green-dim);background:transparent">CLEAR</button>
+            </div>
+
+            <div id="audit-alert" class="alert" style="margin-top:10px;margin-bottom:0"></div>
+          </div>
+        </div>
+
+        <!-- Right: Results -->
+        <div>
+          <div class="card" style="min-height:400px">
+            <div class="card-title">
+              // AUDIT RESULTS
+              <div style="display:flex;gap:6px;align-items:center">
+                <span id="result-badge" class="badge badge-green" style="display:none">SCAN COMPLETE</span>
+                <button onclick="exportReport()" id="export-btn" class="btn btn-sm" style="display:none;border:1px solid var(--green-dim);color:var(--green-dim);background:transparent;font-size:10px">EXPORT</button>
+              </div>
+            </div>
+
+            <div id="results-area">
+              <div style="color:#1a5a1a;font-size:11px;text-align:center;padding:40px 0;line-height:2">
+                <div style="font-size:24px;margin-bottom:8px">🔍</div>
+                Paste code and click SCAN<br>
+                GHOST-AI will identify vulnerabilities,<br>
+                rate severity, and suggest fixes.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scan history -->
+      <div class="card mt">
+        <div class="card-title">// SCAN HISTORY <span class="badge badge-green" id="history-count">0 SCANS</span></div>
+        <div id="scan-history" style="color:#1a5a1a;font-size:11px;text-align:center;padding:10px 0">
+          No scans yet — results will appear here after scanning.
+        </div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <span class="bb">GHOST-AI <span>ONLINE</span></span>
+      <span class="bb">SCANS TODAY <span id="bb-scans">0</span></span>
+      <span class="bb">ENGINE <span>GPT-4O-MINI</span></span>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+let currentLang = 'php';
+let scanCount = 0;
+let scanHistory = JSON.parse(localStorage.getItem('audit_history') || '[]');
+
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  document.getElementById('sb-username').textContent = user.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.07);
+  scanCount = parseInt(localStorage.getItem('audit_scans') || '0');
+  document.getElementById('tb-scans').textContent = scanCount;
+  document.getElementById('bb-scans').textContent = scanCount;
+  renderHistory();
+})();
+
+function setLang(btn, lang) {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentLang = lang;
+}
+
+const SNIPPETS = {
+  'php-sqli': `<?php
+// Vulnerable: direct string concatenation in SQL
+$username = $_POST['username'];
+$password = $_POST['password'];
+
+$query = "SELECT * FROM users WHERE username='" . $username . "' AND password='" . $password . "'";
+$result = mysqli_query($conn, $query);
+
+if (mysqli_num_rows($result) > 0) {
+    $_SESSION['user'] = $username;
+    echo "Login successful!";
+} else {
+    echo "Invalid credentials";
+}
+?>`,
+  'php-xss': `<?php
+// Vulnerable: unescaped output + unsafe file inclusion
+$name = $_GET['name'];
+echo "<h1>Hello, " . $name . "!</h1>";
+
+$page = $_GET['page'];
+include($page . ".php");   // LFI vulnerability
+
+// Also missing CSRF token
+?>`,
+  'python-cmdi': `import subprocess
+from flask import Flask, request
+
+app = Flask(__name__)
+
+@app.route('/ping')
+def ping():
+    host = request.args.get('host')
+    # Vulnerable: user input injected into shell command
+    result = subprocess.check_output('ping -c 1 ' + host, shell=True)
+    return result
+
+@app.route('/read')
+def read_file():
+    filename = request.args.get('file')
+    # Path traversal vulnerability
+    with open('/var/www/files/' + filename, 'r') as f:
+        return f.read()`,
+  'js-eval': `const express = require('express');
+const app = express();
+
+app.get('/calculate', (req, res) => {
+    const expr = req.query.expr;
+    // Vulnerable: eval() on user input — RCE
+    const result = eval(expr);
+    res.json({ result });
+});
+
+app.get('/user', (req, res) => {
+    const id = req.query.id;
+    // Vulnerable: NoSQL injection
+    db.users.find({ $where: "this.id == " + id });
+});`,
+  'c-buffer': `#include <stdio.h>
+#include <string.h>
+
+void authenticate(char *password) {
+    char buf[64];
+    // Vulnerable: strcpy with no bounds check — stack buffer overflow
+    strcpy(buf, password);
+    
+    if (strcmp(buf, "secret123") == 0) {
+        printf("Access granted\\n");
+    }
+}
+
+int main() {
+    char input[256];
+    // Vulnerable: gets() — no length limit
+    gets(input);
+    authenticate(input);
+    return 0;
+}`,
+  'java-deser': `import java.io.*;
+
+public class DataProcessor {
+    public Object loadUserData(byte[] data) throws Exception {
+        // Vulnerable: deserialising untrusted data — RCE via gadget chains
+        ObjectInputStream ois = new ObjectInputStream(
+            new ByteArrayInputStream(data)
+        );
+        return ois.readObject();
+    }
+    
+    public String hashPassword(String password) {
+        // Vulnerable: MD5 is cryptographically broken
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        return new String(md.digest(password.getBytes()));
+    }
+}`
+};
+
+function loadSnippet(key) {
+  document.getElementById('code-input').value = SNIPPETS[key] || '';
+  // Auto-detect language from key
+  if (key.startsWith('php')) { setLang(document.querySelector('.lang-btn'), 'php'); document.querySelectorAll('.lang-btn')[0].classList.add('active'); }
+  if (key.startsWith('python')) { document.querySelectorAll('.lang-btn').forEach(b => { b.classList.remove('active'); if(b.textContent==='PYTHON') b.classList.add('active'); }); currentLang='python'; }
+  if (key.startsWith('js')) { document.querySelectorAll('.lang-btn').forEach(b => { b.classList.remove('active'); if(b.textContent==='JAVASCRIPT') b.classList.add('active'); }); currentLang='javascript'; }
+  if (key.startsWith('c')) { document.querySelectorAll('.lang-btn').forEach(b => { b.classList.remove('active'); if(b.textContent==='C/C++') b.classList.add('active'); }); currentLang='c'; }
+  if (key.startsWith('java')) { document.querySelectorAll('.lang-btn').forEach(b => { b.classList.remove('active'); if(b.textContent==='JAVA') b.classList.add('active'); }); currentLang='java'; }
+}
+
+async function runAudit() {
+  const code = document.getElementById('code-input').value.trim();
+  if (!code) {
+    showAlert('audit-alert', 'Paste code first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.textContent = '[ SCANNING... ]';
+
+  document.getElementById('results-area').innerHTML = `
+    <div style="padding:20px 0;color:var(--cyan)">
+      <div style="font-size:11px;letter-spacing:1px;margin-bottom:12px">GHOST-AI ANALYSING CODE...</div>
+      <div class="thinking-anim"><span></span><span></span><span></span></div>
+      <div style="font-size:10px;color:var(--green-dim);margin-top:8px">Checking for injection vectors, auth flaws, crypto issues, memory safety...</div>
+    </div>`;
+  document.getElementById('result-badge').style.display = 'none';
+  document.getElementById('export-btn').style.display = 'none';
+
+  try {
+    const systemPrompt = `You are GHOST-AI, a senior application security engineer. Analyse the provided ${currentLang} code for security vulnerabilities.
+
+Respond with ONLY a valid JSON object, no markdown, no explanation outside the JSON:
+{
+  "score": <0-100, where 100=perfectly secure, 0=critical issues>,
+  "summary": "<1-2 sentence overall assessment>",
+  "vulnerabilities": [
+    {
+      "name": "<Vulnerability name e.g. SQL Injection>",
+      "severity": "<critical|high|medium|low>",
+      "line": "<line number or range e.g. 5 or 8-12>",
+      "description": "<2-3 sentences explaining the issue and impact>",
+      "fix": "<Concrete fix with example code if possible>"
+    }
+  ]
+}
+
+If no vulnerabilities found, return an empty array and score of 85-100. Be thorough and specific.`;
+
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Language: ${currentLang}\n\nCode:\n${code}` }]
+      })
+    });
+
+    const data = await res.json();
+    const raw = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+
+    let result;
+    try {
+      const clean = raw.replace(/```json|```/g, '').trim();
+      result = JSON.parse(clean);
+    } catch(e) {
+      throw new Error('Failed to parse AI response. Try again.');
+    }
+
+    renderResults(result, code);
+    saveToHistory(result, code.slice(0, 120) + '...');
+    scanCount++;
+    localStorage.setItem('audit_scans', scanCount);
+    document.getElementById('tb-scans').textContent = scanCount;
+    document.getElementById('bb-scans').textContent = scanCount;
+
+  } catch(e) {
+    document.getElementById('results-area').innerHTML = `
+      <div class="alert alert-error show">${e.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '[ SCAN FOR VULNERABILITIES ]';
+}
+
+function renderResults(result, code) {
+  const vulns = result.vulnerabilities || [];
+  const score = result.score || 100;
+  const counts = { critical:0, high:0, medium:0, low:0 };
+  vulns.forEach(v => { if (counts[v.severity] !== undefined) counts[v.severity]++; });
+
+  const scoreColor = score >= 80 ? '#22c522' : score >= 60 ? '#c5a522' : score >= 40 ? '#ff8800' : '#c52222';
+  const circumference = 2 * Math.PI * 36;
+  const dashOffset = circumference - (score / 100) * circumference;
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:14px;background:var(--bg-card2);border-radius:6px">
+      <div class="scan-score-ring">
+        <svg class="score-svg" viewBox="0 0 90 90">
+          <circle cx="45" cy="45" r="36" fill="none" stroke="var(--border)" stroke-width="7"/>
+          <circle cx="45" cy="45" r="36" fill="none" stroke="${scoreColor}" stroke-width="7"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+            stroke-linecap="round" style="transition:stroke-dashoffset 1s ease"/>
+        </svg>
+        <div class="score-text">
+          <div class="score-num" style="color:${scoreColor}">${score}</div>
+          <div class="score-lbl">SCORE</div>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:12px;color:var(--green);margin-bottom:6px">${result.summary || 'Analysis complete.'}</div>
+        <div class="summary-grid">
+          <div class="sev-count"><div class="num" style="color:#ff4444">${counts.critical}</div><div class="lbl" style="color:#ff4444">CRITICAL</div></div>
+          <div class="sev-count"><div class="num" style="color:var(--red)">${counts.high}</div><div class="lbl" style="color:var(--red)">HIGH</div></div>
+          <div class="sev-count"><div class="num" style="color:var(--yellow)">${counts.medium}</div><div class="lbl" style="color:var(--yellow)">MEDIUM</div></div>
+          <div class="sev-count"><div class="num" style="color:var(--green)">${counts.low}</div><div class="lbl" style="color:var(--green)">LOW</div></div>
+        </div>
+      </div>
+    </div>`;
+
+  if (vulns.length === 0) {
+    html += `<div style="text-align:center;padding:20px;color:var(--green)">✓ No critical vulnerabilities found in this snippet.</div>`;
+  } else {
+    vulns.forEach(v => {
+      html += `
+        <div class="vuln-card sev-${v.severity}">
+          <div class="vuln-header">
+            <span class="vuln-name">${v.name}</span>
+            <span class="vuln-line">Line ${v.line}</span>
+            <span class="sev-tag ${v.severity}">${v.severity.toUpperCase()}</span>
+          </div>
+          <div class="vuln-desc">${v.description}</div>
+          <div class="vuln-fix"><strong>FIX: </strong>${v.fix}</div>
+        </div>`;
+    });
+  }
+
+  document.getElementById('results-area').innerHTML = html;
+  document.getElementById('result-badge').style.display = '';
+  document.getElementById('export-btn').style.display = '';
+  document.getElementById('export-btn').onclick = () => exportReport(result, vulns);
+}
+
+function saveToHistory(result, preview) {
+  const entry = {
+    id: Date.now(),
+    lang: currentLang,
+    score: result.score,
+    vulnCount: (result.vulnerabilities || []).length,
+    preview: preview,
+    ts: new Date().toISOString()
+  };
+  scanHistory.unshift(entry);
+  if (scanHistory.length > 20) scanHistory.pop();
+  localStorage.setItem('audit_history', JSON.stringify(scanHistory));
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('scan-history');
+  document.getElementById('history-count').textContent = scanHistory.length + ' SCANS';
+  if (!scanHistory.length) {
+    el.innerHTML = '<div style="color:#1a5a1a;font-size:11px;text-align:center;padding:10px 0">No scans yet</div>';
+    return;
+  }
+  el.innerHTML = scanHistory.slice(0, 6).map(s => {
+    const c = s.score >= 80 ? 'var(--green)' : s.score >= 60 ? 'var(--yellow)' : 'var(--red)';
+    const ago = timeAgo(s.ts);
+    return `<div class="threat-item">
+      <span style="font-size:10px;color:var(--green-dim);width:70px">${s.lang.toUpperCase()}</span>
+      <span style="font-size:11px;color:var(--green);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${s.preview}</span>
+      <span style="color:${c};font-family:var(--font-display);font-size:12px;margin:0 10px">${s.score}</span>
+      <span class="threat-sev sev-${s.score >= 80 ? 'low' : s.score >= 60 ? 'med' : 'high'}">${s.vulnCount} VULN${s.vulnCount!==1?'S':''}</span>
+      <span class="threat-time">${ago}</span>
+    </div>`;
+  }).join('');
+}
+
+function exportReport(result, vulns) {
+  const lines = [
+    '=== CYBEROPS CODE AUDIT REPORT ===',
+    `Date: ${new Date().toLocaleString()}`,
+    `Language: ${currentLang.toUpperCase()}`,
+    `Security Score: ${result.score}/100`,
+    ``,
+    `SUMMARY: ${result.summary}`,
+    ``,
+    `VULNERABILITIES FOUND: ${vulns.length}`,
+    ``,
+    ...vulns.map((v,i) => [
+      `[${i+1}] ${v.name} — ${v.severity.toUpperCase()} (Line ${v.line})`,
+      `    Description: ${v.description}`,
+      `    Fix: ${v.fix}`,
+      ``
+    ].join('\n'))
+  ].join('\n');
+  const blob = new Blob([lines], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `audit-${Date.now()}.txt`;
+  a.click();
+}
+
+function clearAudit() {
+  document.getElementById('code-input').value = '';
+  document.getElementById('results-area').innerHTML = `
+    <div style="color:#1a5a1a;font-size:11px;text-align:center;padding:40px 0;line-height:2">
+      <div style="font-size:24px;margin-bottom:8px">🔍</div>
+      Paste code and click SCAN.
+    </div>`;
+  document.getElementById('result-badge').style.display = 'none';
+  document.getElementById('export-btn').style.display = 'none';
+}
+</script>
+</body>
+</html>

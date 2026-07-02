@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — Hack Lab</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+  <style>
+    .lab-tabs { display:flex; gap:6px; margin-bottom:14px; }
+    .lab-tab {
+      padding:7px 18px; font-family:var(--font-mono); font-size:12px;
+      letter-spacing:1px; cursor:pointer; border-radius:4px;
+      border:1px solid var(--border); color:var(--green-dim);
+      background:var(--bg-card); transition:all .15s;
+    }
+    .lab-tab.active { border-color:var(--green); color:var(--green); background:#0d1f0d; }
+    .lab-tab:hover:not(.active) { border-color:var(--green-dim); color:var(--green); }
+
+    .sandbox-frame {
+      width:100%; height:220px; border:1px solid var(--border);
+      border-radius:6px; background:#010301;
+    }
+    .fired-banner {
+      display:none; margin-top:10px; padding:12px 16px;
+      background:rgba(197,34,34,.15); border:1px solid var(--red);
+      border-radius:5px; color:var(--red); font-size:12px; letter-spacing:.5px;
+      align-items:center; gap:10px;
+    }
+    .fired-banner.show { display:flex; }
+    .fired-banner .fired-msg { flex:1; }
+
+    .sql-output {
+      background:#010301; border:1px solid var(--border); border-radius:5px;
+      padding:12px 14px; font-size:12px; min-height:90px; margin-top:10px;
+      white-space:pre-wrap; line-height:1.7;
+    }
+    .sql-query { color:var(--cyan); }
+    .sql-inject { color:var(--red); }
+    .sql-result { color:var(--green); }
+    .sql-error  { color:var(--yellow); }
+
+    .csrf-demo {
+      display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:10px;
+    }
+    .csrf-site {
+      background:#010301; border:1px solid var(--border); border-radius:5px;
+      padding:14px; font-size:12px;
+    }
+    .csrf-site-title {
+      font-size:10px; letter-spacing:1.5px; color:var(--green-dim);
+      margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:6px;
+    }
+    .csrf-token-row { display:flex; align-items:center; gap:8px; margin:6px 0; }
+    .csrf-token { font-family:var(--font-mono); color:var(--yellow); font-size:10px; }
+    .csrf-attack-btn {
+      margin-top:10px; width:100%; padding:8px; background:rgba(197,34,34,.1);
+      border:1px solid var(--red); color:var(--red); border-radius:4px;
+      cursor:pointer; font-family:var(--font-mono); font-size:12px;
+      letter-spacing:1px; transition:all .15s;
+    }
+    .csrf-attack-btn:hover { background:rgba(197,34,34,.25); }
+
+    .payload-hints {
+      display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;
+    }
+    .hint-chip {
+      font-size:10px; padding:3px 10px; background:var(--bg-card2);
+      border:1px solid var(--border); border-radius:3px; color:var(--cyan);
+      cursor:pointer; font-family:var(--font-mono); transition:all .15s;
+    }
+    .hint-chip:hover { border-color:var(--cyan); background:rgba(0,191,255,.08); }
+
+    .vuln-info {
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:5px;
+      padding:12px 14px; font-size:12px; line-height:1.8; color:var(--green-dim);
+    }
+    .vuln-info strong { color:var(--green); }
+    .vuln-info code { color:var(--cyan); background:#010301; padding:1px 5px; border-radius:3px; font-size:11px; }
+
+    .difficulty-badge { font-size:10px; padding:2px 8px; border-radius:2px; }
+    .diff-easy   { background:rgba(34,197,34,.15);   color:var(--green);  border:1px solid var(--green-dim); }
+    .diff-medium { background:rgba(197,165,34,.15); color:var(--yellow); border:1px solid var(--yellow-dim); }
+    .diff-hard   { background:rgba(197,34,34,.15);   color:var(--red);    border:1px solid var(--red-dim); }
+
+    .lab-progress { display:flex; gap:10px; align-items:center; }
+    .prog-dot { width:9px; height:9px; border-radius:50%; background:var(--border); transition:background .3s; }
+    .prog-dot.done { background:var(--green); box-shadow:0 0 6px var(--green); }
+
+    .solution-panel {
+      margin-top:10px; background:rgba(34,197,34,.04); border:1px solid rgba(34,197,34,.2);
+      border-radius:5px; padding:12px 14px; display:none;
+    }
+    .solution-panel.show { display:block; }
+    .solution-panel h4 { color:var(--green); font-size:11px; letter-spacing:1px; margin-bottom:6px; }
+    .solution-panel p { font-size:11px; color:var(--green-dim); line-height:1.7; }
+    .solution-panel code { color:var(--cyan); font-size:11px; background:#010301; padding:1px 5px; border-radius:3px; }
+  </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item active"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>SANDBOXED ENV</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">// HACK LAB — VULNERABILITY SANDBOX</span>
+      <div class="topbar-right">
+        <span class="tb-item">MODULES <span id="tb-done">0</span>/3</span>
+        <span class="tb-item">ENV <span style="color:#22c522">SANDBOXED</span></span>
+        <span class="tb-item">STATUS <span style="color:#c5a522">EDUCATIONAL</span></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Header card -->
+      <div class="card mt" style="border-color:rgba(197,165,34,.3)">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-family:var(--font-display);color:var(--yellow);font-size:14px;letter-spacing:2px;margin-bottom:4px">⚠ EDUCATIONAL SANDBOX ENVIRONMENT</div>
+            <div style="font-size:11px;color:var(--green-dim);line-height:1.7">
+              All vulnerabilities run in an isolated browser context against simulated targets. No real systems are affected.<br>
+              Goal: understand how web vulnerabilities work so you can find and fix them in real code.
+            </div>
+          </div>
+          <div class="lab-progress" id="lab-progress">
+            <span style="font-size:10px;color:var(--green-dim);letter-spacing:1px">PROGRESS:</span>
+            <div class="prog-dot" id="pd-0"></div>
+            <div class="prog-dot" id="pd-1"></div>
+            <div class="prog-dot" id="pd-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab switcher -->
+      <div class="lab-tabs mt">
+        <button class="lab-tab active" onclick="switchTab('xss',this)">XSS INJECTION</button>
+        <button class="lab-tab" onclick="switchTab('sqli',this)">SQL INJECTION</button>
+        <button class="lab-tab" onclick="switchTab('csrf',this)">CSRF ATTACK</button>
+      </div>
+
+      <!-- ── XSS TAB ── -->
+      <div id="tab-xss">
+        <div class="g2" style="gap:14px">
+          <div class="card">
+            <div class="card-title">// XSS SANDBOX <span class="difficulty-badge diff-easy">EASY</span></div>
+
+            <div class="vuln-info" style="margin-bottom:12px">
+              <strong>Cross-Site Scripting (XSS)</strong> occurs when an application includes unsanitised user input in its HTML output.
+              An attacker can inject <code>&lt;script&gt;</code> tags or event handlers that execute in the victim's browser.
+              Type a payload below and click INJECT to see it execute in the sandboxed preview.
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">PAYLOAD INPUT — simulate unsanitised user input</label>
+              <input type="text" id="xss-input" class="form-input"
+                     placeholder='Try: <img src=x onerror="xssFired(\'Cookie stolen!\')">'>
+            </div>
+
+            <div class="payload-hints">
+              <span style="font-size:10px;color:var(--green-dim);display:flex;align-items:center">QUICK PAYLOADS:</span>
+              <span class="hint-chip" onclick="setXSS('<script>xssFired(\'XSS via script tag\')<\/script>')">Script tag</span>
+              <span class="hint-chip" onclick="setXSS('<img src=x onerror=xssFired(\'img onerror\')>')">img onerror</span>
+              <span class="hint-chip" onclick="setXSS('<svg onload=xssFired(\'SVG onload\')>')">SVG onload</span>
+              <span class="hint-chip" onclick="setXSS('<a href=javascript:xssFired(\'href JS\')>Click me</a>')">javascript: URI</span>
+              <span class="hint-chip" onclick="setXSS('<div onmouseover=xssFired(\'hover event\') style=padding:20px>Hover over me</div>')">Event handler</span>
+              <span class="hint-chip" onclick="setXSS('Hello &lt;b&gt;World&lt;/b&gt;')">Safe text (escaped)</span>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn btn-danger" onclick="runXSS()">[ INJECT PAYLOAD ]</button>
+              <button class="btn btn-sm" onclick="clearXSS()" style="border:1px solid var(--border);color:var(--green-dim);background:transparent">CLEAR</button>
+              <button class="btn btn-sm btn-blue" onclick="toggleSolution('xss')">VIEW FIX</button>
+            </div>
+
+            <div class="fired-banner" id="xss-fired">
+              <span style="font-size:18px">⚠</span>
+              <div class="fired-msg">
+                <div style="font-size:12px;font-weight:700;letter-spacing:1px">XSS PAYLOAD FIRED</div>
+                <div style="font-size:11px;margin-top:2px" id="xss-fired-msg">Payload executed in sandbox</div>
+              </div>
+              <span style="font-size:10px;color:rgba(197,34,34,.6)">SANDBOX ONLY</span>
+            </div>
+
+            <div class="solution-panel" id="sol-xss">
+              <h4>✓ SECURE FIX — Output Encoding</h4>
+              <p>Never insert user input directly into HTML. Always encode output:<br>
+              <code>textContent</code> instead of <code>innerHTML</code> in JS.<br>
+              Server-side: use your framework's auto-escape (Django templates, React JSX, etc.)<br>
+              Implement a strict <code>Content-Security-Policy</code> header to block inline scripts.<br>
+              Use DOMPurify for rich-text scenarios where HTML must be rendered.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">// SANDBOXED PREVIEW <span class="badge badge-green">ISOLATED</span></div>
+            <div style="font-size:10px;color:var(--green-dim);margin-bottom:8px">
+              Rendered output below — simulates an unprotected page that reflects your input
+            </div>
+            <iframe id="xss-frame" class="sandbox-frame" sandbox="allow-scripts"
+                    title="XSS Sandbox"></iframe>
+
+            <div style="margin-top:10px">
+              <div style="font-size:10px;color:var(--green-dim);letter-spacing:1px;margin-bottom:6px">RAW PAYLOAD SENT TO SERVER:</div>
+              <div id="xss-raw" style="font-family:var(--font-mono);font-size:11px;color:var(--yellow);background:#010301;padding:8px 10px;border-radius:4px;min-height:28px;word-break:break-all">—</div>
+            </div>
+
+            <div style="margin-top:8px;font-size:10px;color:#1a5a1a;line-height:1.7">
+              <strong style="color:var(--green-dim)">What to observe:</strong> if your payload changes the page appearance or triggers an alert-style popup,
+              the app is vulnerable. A real attacker could steal session cookies, redirect the user, or deface the page.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SQLI TAB ── -->
+      <div id="tab-sqli" style="display:none">
+        <div class="g2" style="gap:14px">
+          <div class="card">
+            <div class="card-title">// SQL INJECTION LAB <span class="difficulty-badge diff-medium">MEDIUM</span></div>
+
+            <div class="vuln-info" style="margin-bottom:12px">
+              <strong>SQL Injection (SQLi)</strong> happens when user-supplied data is concatenated directly into a SQL query.
+              The attacker breaks out of the string context and injects arbitrary SQL, bypassing authentication
+              or dumping the database. This simulated login form passes your input straight into a query string.
+            </div>
+
+            <div class="g2" style="gap:10px">
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">USERNAME</label>
+                <input type="text" id="sqli-user" class="form-input" placeholder="admin" value="admin">
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">PASSWORD</label>
+                <input type="text" id="sqli-pass" class="form-input" placeholder="password">
+              </div>
+            </div>
+
+            <div class="payload-hints" style="margin-top:10px">
+              <span style="font-size:10px;color:var(--green-dim);display:flex;align-items:center">QUICK PAYLOADS:</span>
+              <span class="hint-chip" onclick="setSQLi('',&quot;' OR '1'='1&quot;)">Auth bypass</span>
+              <span class="hint-chip" onclick="setSQLi(&quot;admin'--&quot;,'')">Comment bypass</span>
+              <span class="hint-chip" onclick="setSQLi('',&quot;' OR 1=1--&quot;)">OR 1=1</span>
+              <span class="hint-chip" onclick="setSQLi('admin','correct_password')">Valid login</span>
+              <span class="hint-chip" onclick="setSQLi('normal_user','wrongpass')">Failed login</span>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn btn-danger" onclick="runSQLi()">[ SUBMIT LOGIN ]</button>
+              <button class="btn btn-sm btn-blue" onclick="toggleSolution('sqli')">VIEW FIX</button>
+            </div>
+
+            <div class="solution-panel" id="sol-sqli">
+              <h4>✓ SECURE FIX — Parameterised Queries</h4>
+              <p>Never concatenate user input into SQL strings. Use prepared statements:<br>
+              <code>SELECT * FROM users WHERE username=? AND password=?</code><br>
+              In Python (psycopg2): <code>cursor.execute(query, (username, password))</code><br>
+              Use an ORM (SQLAlchemy, Django ORM, Prisma) which parameterises automatically.<br>
+              Apply least-privilege database accounts — the web app user shouldn't have DROP rights.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">// QUERY ANALYSER <span class="badge badge-cyan">LIVE</span></div>
+            <div style="font-size:10px;color:var(--green-dim);margin-bottom:8px">
+              Shows the exact SQL string constructed from your input
+            </div>
+            <div id="sql-output" class="sql-output">Waiting for input...</div>
+            <div id="sql-result-box" style="margin-top:10px;display:none;padding:10px 12px;border-radius:5px;font-size:12px"></div>
+
+            <div style="margin-top:10px">
+              <div style="font-size:10px;color:var(--green-dim);letter-spacing:1px;margin-bottom:6px">SIMULATED DATABASE</div>
+              <div style="font-size:11px;color:var(--green-dim);line-height:1.8;font-family:var(--font-mono)">
+                <span style="color:var(--cyan)">users</span> table:<br>
+                &nbsp;id=1 &nbsp;username=<span style="color:var(--yellow)">admin</span> &nbsp;password=<span style="color:var(--yellow)">correct_password</span> &nbsp;role=ADMIN<br>
+                &nbsp;id=2 &nbsp;username=<span style="color:var(--yellow)">alice</span> &nbsp;&nbsp;password=<span style="color:var(--yellow)">alice_pass</span> &nbsp;&nbsp;&nbsp;&nbsp;role=USER<br>
+                &nbsp;id=3 &nbsp;username=<span style="color:var(--yellow)">bob</span> &nbsp;&nbsp;&nbsp;password=<span style="color:var(--yellow)">bob123</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;role=USER
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CSRF TAB ── -->
+      <div id="tab-csrf" style="display:none">
+        <div class="card">
+          <div class="card-title">// CSRF ATTACK DEMO <span class="difficulty-badge diff-medium">MEDIUM</span></div>
+          <div class="vuln-info" style="margin-bottom:14px">
+            <strong>Cross-Site Request Forgery (CSRF)</strong> tricks an authenticated user into unknowingly submitting a request.
+            The browser automatically includes session cookies with every request to a domain — so a malicious site
+            can silently submit forms to your bank, email provider, or any app you're logged into.
+            This demo shows two simulated sites: a vulnerable bank and a malicious attacker page.
+          </div>
+
+          <div class="csrf-demo">
+            <div class="csrf-site">
+              <div class="csrf-site-title">🏦 SIMULATED BANK — bank.example.com</div>
+              <div style="color:var(--green);margin-bottom:8px;font-size:12px">✓ Logged in as: alice@bank.com</div>
+              <div class="csrf-token-row">
+                <span style="color:var(--green-dim);font-size:11px">Session cookie:</span>
+                <span class="csrf-token" id="session-cookie">sess_7fK2mN9xPQ</span>
+              </div>
+              <div id="csrf-protection-toggle" style="margin-top:10px">
+                <label style="font-size:11px;color:var(--green-dim);display:flex;align-items:center;gap:8px;cursor:pointer">
+                  <input type="checkbox" id="csrf-token-enabled" onchange="toggleCSRFToken()">
+                  Enable CSRF token protection
+                </label>
+                <div id="csrf-token-display" style="display:none;margin-top:6px">
+                  <span style="font-size:10px;color:var(--green-dim)">CSRF Token: </span>
+                  <span class="csrf-token" id="csrf-token-val">tok_A9sP2kR8mZ</span>
+                </div>
+              </div>
+              <div id="bank-status" style="margin-top:12px;font-size:11px;min-height:40px;color:var(--green)">
+                Account balance: <span style="font-family:var(--font-display);color:var(--yellow)">$10,000.00</span>
+              </div>
+            </div>
+
+            <div class="csrf-site" style="border-color:rgba(197,34,34,.35)">
+              <div class="csrf-site-title" style="border-color:rgba(197,34,34,.2)">☠ ATTACKER SITE — evil.attacker.com</div>
+              <div style="font-size:11px;color:var(--green-dim);margin-bottom:10px">
+                Hidden form auto-submits to bank. You just visited this link from an email.
+              </div>
+              <div style="background:#010301;border:1px solid rgba(197,34,34,.2);border-radius:4px;padding:10px;font-size:11px;font-family:var(--font-mono);color:rgba(197,34,34,.7)">
+                &lt;form action="bank.example.com/transfer" method="POST"&gt;<br>
+                &nbsp;&lt;input type="hidden" name="to" value="attacker"&gt;<br>
+                &nbsp;&lt;input type="hidden" name="amount" value="9999"&gt;<br>
+                <span id="csrf-form-token" style="display:none;color:rgba(197,165,34,.5)">&nbsp;&lt;!-- CSRF token required --&gt;</span><br>
+                &lt;/form&gt;<br>
+                &lt;script&gt;document.forms[0].submit()&lt;/script&gt;
+              </div>
+              <button class="csrf-attack-btn" onclick="runCSRF()">▶ SIMULATE ATTACK</button>
+            </div>
+          </div>
+
+          <div id="csrf-result" style="margin-top:14px;display:none;padding:12px 16px;border-radius:5px;font-size:12px"></div>
+
+          <div class="solution-panel show" id="sol-csrf" style="margin-top:14px">
+            <h4>✓ SECURE FIX — Synchroniser Token Pattern</h4>
+            <p>
+              1. Generate a random, unpredictable <strong style="color:var(--green)">CSRF token</strong> per session and embed it in every state-changing form.<br>
+              2. On the server, verify the token matches before processing the request.<br>
+              3. Also set <code>SameSite=Strict</code> or <code>SameSite=Lax</code> on session cookies — modern browsers will refuse to send them cross-site.<br>
+              4. Use the <code>Origin</code> and <code>Referer</code> headers as a secondary check.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+    <div class="bottombar">
+      <span class="bb">ENVIRONMENT <span>SANDBOXED</span></span>
+      <span class="bb">TARGET <span>SIMULATED</span></span>
+      <span class="bb">SCOPE <span>EDUCATIONAL</span></span>
+      <span class="bb">ISOLATION <span>BROWSER</span></span>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+// ── Init ──
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  document.getElementById('sb-username').textContent = user.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.07);
+  loadProgress();
+})();
+
+// ── Tab switching ──
+function switchTab(name, btn) {
+  ['xss','sqli','csrf'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = 'none';
+  });
+  document.querySelectorAll('.lab-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  btn.classList.add('active');
+}
+
+// ── Progress tracking ──
+function loadProgress() {
+  const done = JSON.parse(localStorage.getItem('hacklab_done') || '[]');
+  done.forEach(i => {
+    const dot = document.getElementById('pd-' + i);
+    if (dot) dot.classList.add('done');
+  });
+  document.getElementById('tb-done').textContent = done.length;
+}
+function markDone(idx) {
+  const done = JSON.parse(localStorage.getItem('hacklab_done') || '[]');
+  if (!done.includes(idx)) {
+    done.push(idx);
+    localStorage.setItem('hacklab_done', JSON.stringify(done));
+    loadProgress();
+  }
+}
+
+// ── Solution toggle ──
+function toggleSolution(type) {
+  const el = document.getElementById('sol-' + type);
+  el.classList.toggle('show');
+}
+
+// ── XSS Lab ──
+let xssAlert = null;
+function setXSS(payload) {
+  document.getElementById('xss-input').value = payload;
+}
+function clearXSS() {
+  document.getElementById('xss-input').value = '';
+  document.getElementById('xss-fired').classList.remove('show');
+  document.getElementById('xss-raw').textContent = '—';
+  const frame = document.getElementById('xss-frame');
+  frame.srcdoc = '';
+}
+function runXSS() {
+  const payload = document.getElementById('xss-input').value;
+  if (!payload) return;
+  document.getElementById('xss-raw').textContent = payload;
+  document.getElementById('xss-fired').classList.remove('show');
+
+  // Inject into sandboxed iframe — sandbox="allow-scripts" isolates from parent origin
+  const frameContent = `<!DOCTYPE html>
+<html>
+<head><style>
+  body { background:#010301; color:#22c522; font-family:monospace; padding:14px; font-size:13px; }
+  * { box-sizing:border-box; }
+</style></head>
+<body>
+<script>
+  // Override alert/confirm/prompt to postMessage parent
+  window.xssFired = function(msg) {
+    window.parent.postMessage({type:'xss-fired',msg: msg || 'Payload executed'}, '*');
+  };
+  window.alert = function(msg) {
+    window.parent.postMessage({type:'xss-fired',msg:'alert("' + (msg||'') + '")'}, '*');
+  };
+<\/script>
+<div id="content">
+  <!-- Simulated page that reflects user input -->
+  <div style="border:1px solid #1a3a1a;padding:10px;border-radius:4px;margin-bottom:10px;font-size:11px;color:#1a5a1a">
+    Page: /search?q=[USER_INPUT] &nbsp;|&nbsp; Unsanitised reflection below
+  </div>
+  ${payload}
+</div>
+</body></html>`;
+
+  const frame = document.getElementById('xss-frame');
+  frame.srcdoc = frameContent;
+  markDone(0);
+}
+
+// Listen for messages from sandboxed iframe
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'xss-fired') {
+    const banner = document.getElementById('xss-fired');
+    banner.classList.add('show');
+    document.getElementById('xss-fired-msg').textContent = e.data.msg;
+    markDone(0);
+  }
+});
+
+// ── SQLi Lab ──
+const DB = [
+  { id:1, username:'admin', password:'correct_password', role:'ADMIN' },
+  { id:2, username:'alice', password:'alice_pass', role:'USER' },
+  { id:3, username:'bob',   password:'bob123',     role:'USER' }
+];
+
+function setSQLi(user, pass) {
+  document.getElementById('sqli-user').value = user;
+  document.getElementById('sqli-pass').value = pass;
+}
+
+function runSQLi() {
+  const user = document.getElementById('sqli-user').value;
+  const pass = document.getElementById('sqli-pass').value;
+
+  // Vulnerable query string (as it would look server-side)
+  const query = `SELECT * FROM users WHERE username='${user}' AND password='${pass}'`;
+  let output = `<span class="sql-query">// Vulnerable query construction:\n</span>`;
+  output += `<span class="sql-query">SELECT * FROM users WHERE username='${escHTML(user)}' AND password='${escHTML(pass)}'</span>\n\n`;
+
+  // Detect injection patterns
+  const injectionPatterns = [/'\s*OR\s*/i, /--/, /#/, /'\s*;/, /UNION/i, /DROP/i, /1=1/i, /'\s*=\s*'/i];
+  const isInjection = injectionPatterns.some(p => p.test(user) || p.test(pass));
+
+  const resultBox = document.getElementById('sql-result-box');
+
+  if (isInjection) {
+    output += `<span class="sql-inject">⚠ INJECTION DETECTED — SQL syntax breaking out of string context\n</span>`;
+    output += `<span class="sql-inject">Attacker-controlled logic is now part of the SQL query.\n\n</span>`;
+    output += `<span class="sql-inject">Result: authentication bypassed — all rows returned:\n</span>`;
+    DB.forEach(row => {
+      output += `<span class="sql-result">  → id=${row.id} username=${row.username} role=${row.role}\n</span>`;
+    });
+    resultBox.style.display = 'block';
+    resultBox.style.background = 'rgba(197,34,34,.1)';
+    resultBox.style.border = '1px solid var(--red)';
+    resultBox.style.color = 'var(--red)';
+    resultBox.innerHTML = '⚠ LOGIN BYPASSED — Logged in as ADMIN without knowing any password';
+    markDone(1);
+  } else {
+    // Normal lookup
+    const match = DB.find(r => r.username === user && r.password === pass);
+    if (match) {
+      output += `<span class="sql-result">Query executed successfully.\n</span>`;
+      output += `<span class="sql-result">Rows returned: 1\n</span>`;
+      output += `<span class="sql-result">  → id=${match.id} username=${match.username} role=${match.role}\n</span>`;
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(34,197,34,.08)';
+      resultBox.style.border = '1px solid var(--green-dim)';
+      resultBox.style.color = 'var(--green)';
+      resultBox.innerHTML = `✓ LOGIN SUCCESS — Welcome ${match.username} (${match.role})`;
+    } else {
+      output += `<span class="sql-error">Query executed — 0 rows returned.\n</span>`;
+      output += `<span class="sql-error">No matching user found.\n</span>`;
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(197,165,34,.08)';
+      resultBox.style.border = '1px solid var(--yellow-dim)';
+      resultBox.style.color = 'var(--yellow)';
+      resultBox.innerHTML = '✗ LOGIN FAILED — Invalid credentials';
+    }
+  }
+
+  document.getElementById('sql-output').innerHTML = output;
+}
+function escHTML(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
+
+// ── CSRF Lab ──
+let csrfProtected = false;
+let balance = 10000;
+
+function toggleCSRFToken() {
+  csrfProtected = document.getElementById('csrf-token-enabled').checked;
+  document.getElementById('csrf-token-display').style.display = csrfProtected ? 'block' : 'none';
+  document.getElementById('csrf-form-token').style.display = csrfProtected ? 'block' : 'none';
+  document.getElementById('csrf-form-token').innerHTML = csrfProtected
+    ? '&nbsp;&lt;!-- ✓ CSRF token not in attacker\'s form --&gt;'
+    : '';
+}
+
+function runCSRF() {
+  const result = document.getElementById('csrf-result');
+  result.style.display = 'block';
+
+  if (csrfProtected) {
+    result.style.background = 'rgba(34,197,34,.08)';
+    result.style.border = '1px solid var(--green-dim)';
+    result.style.color = 'var(--green)';
+    result.innerHTML = `
+      ✓ ATTACK BLOCKED<br>
+      <span style="font-size:11px;color:var(--green-dim)">
+      Server checked CSRF token: attacker's form didn't include a valid token.<br>
+      Request rejected with HTTP 403 Forbidden. Bank balance unchanged: $${balance.toLocaleString()}.
+      </span>`;
+    markDone(2);
+  } else {
+    balance -= 9999;
+    result.style.background = 'rgba(197,34,34,.1)';
+    result.style.border = '1px solid var(--red)';
+    result.style.color = 'var(--red)';
+    result.innerHTML = `
+      ⚠ ATTACK SUCCEEDED — Transfer of $9,999 processed<br>
+      <span style="font-size:11px;color:rgba(197,34,34,.7)">
+      Browser sent session cookie automatically. Server saw a valid authenticated request.<br>
+      New balance: $${balance.toLocaleString()}. Enable CSRF protection above and try again.
+      </span>`;
+    document.getElementById('bank-status').innerHTML =
+      `Account balance: <span style="font-family:var(--font-display);color:var(--red)">$${balance.toLocaleString()}</span> <span style="color:var(--red);font-size:10px">FUNDS STOLEN</span>`;
+    markDone(2);
+  }
+}
+</script>
+</body>
+</html>

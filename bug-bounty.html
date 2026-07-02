@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — Bug Bounty Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+  <style>
+    .finding-row {
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:5px;
+      padding:12px 14px; margin-bottom:8px; cursor:pointer;
+      transition:border-color .15s; display:flex; align-items:center; gap:10px;
+    }
+    .finding-row:hover { border-color:var(--green-dim); }
+    .finding-name { flex:1; color:var(--green); font-size:13px; }
+    .finding-url  { font-size:10px; color:var(--green-dim); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .finding-payout { font-family:var(--font-display); color:var(--yellow); font-size:14px; font-weight:700; }
+
+    .status-chip {
+      font-size:10px; padding:2px 8px; border-radius:2px; letter-spacing:.5px;
+      font-family:var(--font-mono);
+    }
+    .status-submitted { background:#1a2e1a; color:var(--green); border:1px solid var(--green-dim); }
+    .status-triaged   { background:#2e2400; color:var(--yellow); border:1px solid var(--yellow-dim); }
+    .status-accepted  { background:rgba(58,138,221,.15); color:var(--blue); border:1px solid var(--blue); }
+    .status-paid      { background:rgba(197,165,34,.15); color:var(--yellow); border:1px solid var(--yellow); }
+    .status-duplicate { background:#1a1a2e; color:var(--grey); border:1px solid #3a3a5a; }
+    .status-na        { background:var(--red-dim); color:var(--red); border:1px solid var(--red-dim); }
+
+    .prog-card {
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:5px;
+      padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:10px;
+    }
+    .prog-name { flex:1; color:var(--green); font-size:12px; }
+    .prog-type { font-size:10px; padding:2px 6px; border-radius:2px; }
+    .prog-h1   { background:#1a3a2a; color:#00cc88; border:1px solid #00883a; }
+    .prog-bc   { background:#1a2a3a; color:#3a88dd; border:1px solid #1a5a8a; }
+    .prog-priv { background:#2e2400; color:var(--yellow); border:1px solid var(--yellow-dim); }
+
+    .earning-stat { text-align:center; }
+    .earning-stat .num { font-family:var(--font-display); font-size:24px; font-weight:700; }
+
+    .report-output {
+      background:#010301; border:1px solid var(--border); border-radius:5px;
+      padding:14px; font-size:12px; line-height:1.8; color:var(--green); min-height:200px;
+      white-space:pre-wrap; overflow-y:auto; max-height:400px;
+    }
+    .thinking-anim { display:flex; gap:5px; align-items:center; padding:20px; }
+    .thinking-anim span { width:7px; height:7px; border-radius:50%; background:var(--cyan); animation:thinkPulse .8s infinite; }
+    .thinking-anim span:nth-child(2) { animation-delay:.15s; }
+    .thinking-anim span:nth-child(3) { animation-delay:.3s; }
+    @keyframes thinkPulse { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
+
+    .bb-tabs { display:flex; gap:6px; margin-bottom:14px; }
+    .bb-tab {
+      padding:6px 14px; font-family:var(--font-mono); font-size:11px; letter-spacing:1px;
+      cursor:pointer; border-radius:3px; border:1px solid var(--border);
+      color:var(--green-dim); background:var(--bg-card); transition:all .15s;
+    }
+    .bb-tab.active { border-color:var(--green); color:var(--green); background:#0d1f0d; }
+
+    .cvss-display {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:2px 8px; border-radius:3px; font-size:11px;
+    }
+    .cvss-critical { background:rgba(255,34,34,.2); color:#ff4444; border:1px solid #ff2222; }
+    .cvss-high     { background:rgba(197,34,34,.15); color:var(--red); border:1px solid var(--red-dim); }
+    .cvss-medium   { background:rgba(197,165,34,.15); color:var(--yellow); border:1px solid var(--yellow-dim); }
+    .cvss-low      { background:rgba(34,197,34,.1); color:var(--green); border:1px solid var(--green-dim); }
+
+    .donut-chart { position:relative; width:100px; height:100px; }
+    .donut-svg { width:100px; height:100px; transform:rotate(-90deg); }
+    .donut-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center; }
+  </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item active"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>BUG HUNTER MODE</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">// BUG BOUNTY TRACKER</span>
+      <div class="topbar-right">
+        <span class="tb-item">EARNINGS <span id="tb-earn" style="color:var(--yellow)">$0</span></span>
+        <span class="tb-item">FINDINGS <span id="tb-finds">0</span></span>
+        <span class="tb-item">ACCEPT RATE <span id="tb-rate" style="color:var(--green)">0%</span></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="bb-tabs mt">
+        <button class="bb-tab active" onclick="switchBBTab('dashboard',this)">DASHBOARD</button>
+        <button class="bb-tab" onclick="switchBBTab('findings',this)">FINDINGS</button>
+        <button class="bb-tab" onclick="switchBBTab('programs',this)">PROGRAMS</button>
+        <button class="bb-tab" onclick="switchBBTab('report',this)">AI REPORT WRITER</button>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div id="bbtab-dashboard">
+        <div class="g4">
+          <div class="stat-box"><div class="stat-n" id="s-total-earn" style="color:var(--yellow)">$0</div><div class="stat-l">TOTAL EARNED</div></div>
+          <div class="stat-box"><div class="stat-n" id="s-accepted" style="color:var(--green)">0</div><div class="stat-l">ACCEPTED</div></div>
+          <div class="stat-box"><div class="stat-n" id="s-pending" style="color:var(--cyan)">0</div><div class="stat-l">PENDING</div></div>
+          <div class="stat-box"><div class="stat-n" id="s-programs">0</div><div class="stat-l">PROGRAMS</div></div>
+        </div>
+
+        <div class="g2 mt" style="gap:14px">
+          <div class="card">
+            <div class="card-title">// EARNINGS OVERVIEW</div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap">
+              <div class="earning-stat">
+                <div class="num" style="color:var(--yellow)" id="d-total">$0</div>
+                <div style="font-size:10px;color:var(--green-dim)">TOTAL EARNED</div>
+              </div>
+              <div class="earning-stat">
+                <div class="num" style="color:var(--green)" id="d-avg">$0</div>
+                <div style="font-size:10px;color:var(--green-dim)">AVG PAYOUT</div>
+              </div>
+              <div class="earning-stat">
+                <div class="num" style="color:var(--cyan)" id="d-highest">$0</div>
+                <div style="font-size:10px;color:var(--green-dim)">HIGHEST</div>
+              </div>
+            </div>
+            <div style="margin-top:14px" id="severity-breakdown"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">// ACCEPTANCE RATE <span class="badge badge-green" id="ar-badge">0%</span></div>
+            <div style="display:flex;align-items:center;gap:16px">
+              <div class="donut-chart" id="donut-wrap">
+                <svg class="donut-svg" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--border)" stroke-width="12"/>
+                  <circle id="donut-circle" cx="50" cy="50" r="38" fill="none" stroke="var(--green)" stroke-width="12"
+                    stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round"/>
+                </svg>
+                <div class="donut-text">
+                  <div style="font-family:var(--font-display);color:var(--green);font-size:16px;font-weight:700" id="donut-pct">0%</div>
+                  <div style="font-size:9px;color:var(--green-dim)">RATE</div>
+                </div>
+              </div>
+              <div id="status-breakdown" style="flex:1"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-title">// RECENT FINDINGS</div>
+          <div id="recent-findings-list">
+            <div style="color:#1a5a1a;font-size:11px;text-align:center;padding:16px">
+              No findings yet — add your first finding in the FINDINGS tab.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINDINGS -->
+      <div id="bbtab-findings" style="display:none">
+        <div class="g2 mt" style="gap:14px">
+          <div class="card">
+            <div class="card-title">// LOG FINDING</div>
+            <div class="form-group">
+              <label class="form-label">VULNERABILITY TITLE</label>
+              <input type="text" id="f-title" class="form-input" placeholder="Stored XSS in /profile/bio parameter">
+            </div>
+            <div class="g2" style="gap:10px">
+              <div class="form-group">
+                <label class="form-label">PROGRAM</label>
+                <select id="f-program" class="form-select"><option value="">— select —</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">TYPE</label>
+                <select id="f-type" class="form-select">
+                  <option>XSS</option><option>SQLi</option><option>SSRF</option>
+                  <option>IDOR</option><option>RCE</option><option>LFI/RFI</option>
+                  <option>Authentication Bypass</option><option>Privilege Escalation</option>
+                  <option>Business Logic</option><option>Open Redirect</option>
+                  <option>CSRF</option><option>XXE</option><option>SSTI</option>
+                  <option>Information Disclosure</option><option>Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="g2" style="gap:10px">
+              <div class="form-group">
+                <label class="form-label">TARGET URL</label>
+                <input type="text" id="f-url" class="form-input" placeholder="https://target.com/endpoint">
+              </div>
+              <div class="form-group">
+                <label class="form-label">CVSS SCORE (0-10)</label>
+                <input type="number" id="f-cvss" class="form-input" min="0" max="10" step="0.1" placeholder="7.5">
+              </div>
+            </div>
+            <div class="g2" style="gap:10px">
+              <div class="form-group">
+                <label class="form-label">SEVERITY</label>
+                <select id="f-sev" class="form-select">
+                  <option>Critical</option><option>High</option>
+                  <option>Medium</option><option>Low</option><option>Informational</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">STATUS</label>
+                <select id="f-status" class="form-select">
+                  <option>Submitted</option><option>Triaged</option>
+                  <option>Accepted</option><option>Paid</option>
+                  <option>Duplicate</option><option>N/A</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">PAYOUT (USD) — leave 0 if pending</label>
+              <input type="number" id="f-payout" class="form-input" placeholder="0" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">NOTES</label>
+              <textarea id="f-notes" class="form-textarea" placeholder="Brief description of the vulnerability, steps to reproduce, impact..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="addFinding()">[ LOG FINDING ]</button>
+            <div id="f-alert" class="alert" style="margin-top:10px;margin-bottom:0"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">// ALL FINDINGS <span class="badge badge-green" id="findings-count">0</span></div>
+            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+              <select id="filter-status" class="form-select" style="width:auto" onchange="renderFindings()">
+                <option value="">ALL STATUS</option>
+                <option>Submitted</option><option>Triaged</option><option>Accepted</option>
+                <option>Paid</option><option>Duplicate</option><option>N/A</option>
+              </select>
+              <select id="filter-sev" class="form-select" style="width:auto" onchange="renderFindings()">
+                <option value="">ALL SEVERITY</option>
+                <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+              </select>
+            </div>
+            <div id="findings-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROGRAMS -->
+      <div id="bbtab-programs" style="display:none">
+        <div class="g2 mt" style="gap:14px">
+          <div class="card">
+            <div class="card-title">// ADD PROGRAM</div>
+            <div class="form-group">
+              <label class="form-label">PROGRAM NAME</label>
+              <input type="text" id="p-name" class="form-input" placeholder="Acme Corp Bug Bounty">
+            </div>
+            <div class="g2" style="gap:10px">
+              <div class="form-group">
+                <label class="form-label">PLATFORM</label>
+                <select id="p-type" class="form-select">
+                  <option>HackerOne</option><option>Bugcrowd</option>
+                  <option>Intigriti</option><option>Private</option><option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">MAX PAYOUT</label>
+                <input type="number" id="p-max" class="form-input" placeholder="50000" min="0">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">SCOPE URL / PROGRAM LINK</label>
+              <input type="text" id="p-url" class="form-input" placeholder="https://hackerone.com/program">
+            </div>
+            <div class="form-group">
+              <label class="form-label">NOTES (scope, exclusions, etc.)</label>
+              <textarea id="p-notes" class="form-textarea" placeholder="In scope: *.example.com, api.example.com&#10;Out of scope: staging.example.com..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="addProgram()">[ ADD PROGRAM ]</button>
+            <div id="p-alert" class="alert" style="margin-top:10px;margin-bottom:0"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">// MY PROGRAMS <span class="badge badge-green" id="prog-count">0</span></div>
+            <div id="programs-list">
+              <div style="color:#1a5a1a;font-size:11px;text-align:center;padding:16px">No programs yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI REPORT WRITER -->
+      <div id="bbtab-report" style="display:none">
+        <div class="card mt">
+          <div class="card-title">// AI REPORT WRITER <span class="badge badge-cyan">GHOST-AI</span></div>
+          <div style="font-size:11px;color:var(--green-dim);margin-bottom:14px;line-height:1.7">
+            Describe the vulnerability and GHOST-AI will generate a professional, platform-ready disclosure report
+            covering impact, reproduction steps, CVSS breakdown, and remediation advice.
+          </div>
+          <div class="g2" style="gap:14px">
+            <div>
+              <div class="form-group">
+                <label class="form-label">VULNERABILITY TYPE</label>
+                <select id="rw-type" class="form-select">
+                  <option>XSS</option><option>SQLi</option><option>SSRF</option><option>IDOR</option>
+                  <option>RCE</option><option>Authentication Bypass</option><option>Privilege Escalation</option>
+                  <option>CSRF</option><option>Business Logic</option><option>Information Disclosure</option><option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">SEVERITY</label>
+                <select id="rw-sev" class="form-select">
+                  <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">TARGET / ENDPOINT</label>
+                <input type="text" id="rw-target" class="form-input" placeholder="https://target.com/api/profile">
+              </div>
+              <div class="form-group">
+                <label class="form-label">DESCRIBE THE BUG (plain English)</label>
+                <textarea id="rw-desc" class="form-textarea" rows="5"
+                  placeholder="The /api/profile endpoint reflects the 'name' parameter without sanitisation. An attacker can inject a script tag that executes in the context of any user who views the affected profile. Session cookies are accessible to the injected script..."></textarea>
+              </div>
+              <button class="btn btn-primary btn-full" id="rw-btn" onclick="generateReport()">[ GENERATE REPORT ]</button>
+              <div id="rw-alert" class="alert" style="margin-top:10px;margin-bottom:0"></div>
+            </div>
+            <div>
+              <div class="form-label">GENERATED REPORT</div>
+              <div id="report-output" class="report-output">
+Report will appear here after generation...
+
+GHOST-AI will produce:
+  • Executive summary
+  • Impact analysis  
+  • Step-by-step reproduction
+  • CVSS vector breakdown
+  • Proof-of-concept notes
+  • Remediation guidance</div>
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="btn btn-sm btn-yellow" id="copy-report-btn" onclick="copyReport()" style="display:none">COPY REPORT</button>
+                <button class="btn btn-sm" id="dl-report-btn" onclick="downloadReport()" style="display:none;border:1px solid var(--green-dim);color:var(--green-dim);background:transparent">DOWNLOAD .TXT</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="bottombar">
+      <span class="bb">FINDINGS <span id="bb-finds">0</span></span>
+      <span class="bb">PROGRAMS <span id="bb-progs">0</span></span>
+      <span class="bb">TOTAL <span id="bb-total" style="color:var(--yellow)">$0</span></span>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+let findings = JSON.parse(localStorage.getItem('bb_findings') || '[]');
+let programs = JSON.parse(localStorage.getItem('bb_programs') || '[]');
+let generatedReport = '';
+
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  document.getElementById('sb-username').textContent = user.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.07);
+  refreshAll();
+})();
+
+function switchBBTab(name, btn) {
+  ['dashboard','findings','programs','report'].forEach(t => {
+    document.getElementById('bbtab-' + t).style.display = 'none';
+  });
+  document.querySelectorAll('.bb-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('bbtab-' + name).style.display = 'block';
+  btn.classList.add('active');
+  if (name === 'dashboard') refreshDashboard();
+  if (name === 'findings') { renderFindings(); refreshProgramSelect(); }
+  if (name === 'programs') renderPrograms();
+}
+
+function refreshAll() {
+  refreshDashboard();
+  renderFindings();
+  renderPrograms();
+  refreshProgramSelect();
+}
+
+function refreshDashboard() {
+  const total = findings.reduce((a,f) => a + (f.payout || 0), 0);
+  const accepted = findings.filter(f => ['Accepted','Paid'].includes(f.status)).length;
+  const paid = findings.filter(f => f.status === 'Paid');
+  const pending = findings.filter(f => ['Submitted','Triaged'].includes(f.status)).length;
+  const rate = findings.length ? Math.round(accepted / findings.length * 100) : 0;
+  const payouts = paid.map(f => f.payout).filter(p => p > 0);
+  const avg = payouts.length ? Math.round(payouts.reduce((a,b) => a+b,0) / payouts.length) : 0;
+  const highest = payouts.length ? Math.max(...payouts) : 0;
+
+  ['s-total-earn','d-total'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = '$'+total.toLocaleString(); });
+  ['tb-earn','bb-total'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = '$'+total.toLocaleString(); });
+  document.getElementById('s-accepted').textContent = accepted;
+  document.getElementById('s-pending').textContent = pending;
+  document.getElementById('s-programs').textContent = programs.length;
+  document.getElementById('tb-finds').textContent = findings.length;
+  document.getElementById('tb-rate').textContent = rate + '%';
+  document.getElementById('bb-finds').textContent = findings.length;
+  document.getElementById('bb-progs').textContent = programs.length;
+  if (document.getElementById('d-avg')) document.getElementById('d-avg').textContent = '$' + avg.toLocaleString();
+  if (document.getElementById('d-highest')) document.getElementById('d-highest').textContent = '$' + highest.toLocaleString();
+
+  // Acceptance rate donut
+  const arEl = document.getElementById('ar-badge');
+  if (arEl) arEl.textContent = rate + '%';
+  const donut = document.getElementById('donut-circle');
+  if (donut) {
+    const circ = 238.76;
+    donut.setAttribute('stroke-dashoffset', circ - (rate/100 * circ));
+    donut.setAttribute('stroke', rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--yellow)' : 'var(--red)');
+  }
+  const dpct = document.getElementById('donut-pct');
+  if (dpct) dpct.textContent = rate + '%';
+
+  // Status breakdown
+  const statusCounts = {};
+  findings.forEach(f => { statusCounts[f.status] = (statusCounts[f.status] || 0) + 1; });
+  const sbEl = document.getElementById('status-breakdown');
+  if (sbEl) {
+    sbEl.innerHTML = Object.entries(statusCounts).map(([s,c]) =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span class="status-chip status-${s.toLowerCase()}">${s}</span>
+        <span style="color:var(--green);font-family:var(--font-display)">${c}</span>
+      </div>`).join('') || '<div style="color:#1a5a1a;font-size:11px">No data</div>';
+  }
+
+  // Severity breakdown bars
+  const sevs = ['Critical','High','Medium','Low','Informational'];
+  const sevCounts = {};
+  findings.forEach(f => { sevCounts[f.severity] = (sevCounts[f.severity] || 0) + 1; });
+  const sbEl2 = document.getElementById('severity-breakdown');
+  if (sbEl2) {
+    sbEl2.innerHTML = sevs.filter(s => sevCounts[s]).map(s => {
+      const colors = { Critical:'#ff4444', High:'var(--red)', Medium:'var(--yellow)', Low:'var(--green)', Informational:'var(--grey)' };
+      const pct = findings.length ? Math.round(sevCounts[s]/findings.length*100) : 0;
+      return `<div class="bar-row"><span class="bar-lbl" style="width:80px;color:${colors[s]}">${s}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colors[s]}"></div></div>
+        <span class="bar-pct">${sevCounts[s]}</span></div>`;
+    }).join('') || '';
+  }
+
+  // Recent findings
+  const rfEl = document.getElementById('recent-findings-list');
+  if (rfEl) {
+    if (!findings.length) {
+      rfEl.innerHTML = '<div style="color:#1a5a1a;font-size:11px;text-align:center;padding:16px">No findings yet</div>';
+    } else {
+      rfEl.innerHTML = findings.slice(0,5).map(f => `
+        <div class="finding-row">
+          <span class="finding-name">${f.title}</span>
+          <span class="finding-url">${f.url || '—'}</span>
+          <span class="cvss-display cvss-${(f.severity||'').toLowerCase()}">${f.severity}</span>
+          <span class="status-chip status-${f.status.toLowerCase()}">${f.status}</span>
+          <span class="finding-payout">${f.payout > 0 ? '$'+f.payout.toLocaleString() : '—'}</span>
+        </div>`).join('');
+    }
+  }
+}
+
+function refreshProgramSelect() {
+  const sel = document.getElementById('f-program');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— select program —</option>' +
+    programs.map(p => `<option value="${p.name}">${p.name} (${p.type})</option>`).join('');
+}
+
+function addFinding() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { showAlert('f-alert','Enter a vulnerability title','error'); return; }
+  const finding = {
+    id: Date.now(),
+    title,
+    program:  document.getElementById('f-program').value,
+    type:     document.getElementById('f-type').value,
+    url:      document.getElementById('f-url').value.trim(),
+    cvss:     parseFloat(document.getElementById('f-cvss').value) || 0,
+    severity: document.getElementById('f-sev').value,
+    status:   document.getElementById('f-status').value,
+    payout:   parseFloat(document.getElementById('f-payout').value) || 0,
+    notes:    document.getElementById('f-notes').value.trim(),
+    ts:       new Date().toISOString()
+  };
+  findings.unshift(finding);
+  localStorage.setItem('bb_findings', JSON.stringify(findings));
+  showAlert('f-alert', `✓ "${title}" logged`, 'success');
+  ['f-title','f-url','f-cvss','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-payout').value = '0';
+  renderFindings();
+  refreshDashboard();
+}
+
+function addProgram() {
+  const name = document.getElementById('p-name').value.trim();
+  if (!name) { showAlert('p-alert','Enter a program name','error'); return; }
+  const prog = {
+    id: Date.now(),
+    name,
+    type:  document.getElementById('p-type').value,
+    max:   parseFloat(document.getElementById('p-max').value) || 0,
+    url:   document.getElementById('p-url').value.trim(),
+    notes: document.getElementById('p-notes').value.trim(),
+    ts:    new Date().toISOString()
+  };
+  programs.push(prog);
+  localStorage.setItem('bb_programs', JSON.stringify(programs));
+  showAlert('p-alert', `✓ "${name}" added`, 'success');
+  ['p-name','p-max','p-url','p-notes'].forEach(id => document.getElementById(id).value = '');
+  renderPrograms();
+  refreshProgramSelect();
+  refreshDashboard();
+}
+
+function renderFindings() {
+  const statusF = document.getElementById('filter-status')?.value || '';
+  const sevF    = document.getElementById('filter-sev')?.value || '';
+  let list = findings.filter(f =>
+    (!statusF || f.status === statusF) &&
+    (!sevF    || f.severity === sevF)
+  );
+  const el = document.getElementById('findings-list');
+  const count = document.getElementById('findings-count');
+  if (count) count.textContent = list.length;
+  if (!el) return;
+  if (!list.length) { el.innerHTML = '<div style="color:#1a5a1a;font-size:11px;text-align:center;padding:16px">No findings match filters</div>'; return; }
+  el.innerHTML = list.map(f => `
+    <div class="finding-row">
+      <div style="flex:1;min-width:0">
+        <div class="finding-name" style="margin-bottom:2px">${f.title}</div>
+        <div style="font-size:10px;color:var(--green-dim)">${f.type} · ${f.program || 'No program'} · ${f.url || 'No URL'}</div>
+      </div>
+      <span class="cvss-display cvss-${(f.severity||'').toLowerCase()}" style="flex-shrink:0">${f.severity}</span>
+      <span class="status-chip status-${f.status.toLowerCase()}" style="flex-shrink:0">${f.status}</span>
+      <span class="finding-payout" style="flex-shrink:0">${f.payout > 0 ? '$'+f.payout.toLocaleString() : '—'}</span>
+      <button onclick="deleteFinding(${f.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;flex-shrink:0">✕</button>
+    </div>`).join('');
+}
+
+function deleteFinding(id) {
+  findings = findings.filter(f => f.id !== id);
+  localStorage.setItem('bb_findings', JSON.stringify(findings));
+  renderFindings(); refreshDashboard();
+}
+
+function renderPrograms() {
+  const el = document.getElementById('programs-list');
+  const count = document.getElementById('prog-count');
+  if (count) count.textContent = programs.length;
+  if (!el) return;
+  if (!programs.length) { el.innerHTML = '<div style="color:#1a5a1a;font-size:11px;text-align:center;padding:16px">No programs yet</div>'; return; }
+  el.innerHTML = programs.map(p => {
+    const typeKey = { HackerOne:'h1', Bugcrowd:'bc', Intigriti:'bc', Private:'priv', Other:'priv' };
+    const count = findings.filter(f => f.program === p.name).length;
+    const earned = findings.filter(f => f.program === p.name && f.payout > 0).reduce((a,f) => a+f.payout, 0);
+    return `<div class="prog-card">
+      <span class="prog-type prog-${typeKey[p.type]||'priv'}">${p.type}</span>
+      <div style="flex:1;min-width:0">
+        <div class="prog-name">${p.name}</div>
+        <div style="font-size:10px;color:var(--green-dim)">${count} findings · $${earned.toLocaleString()} earned</div>
+      </div>
+      ${p.max > 0 ? `<span style="font-size:10px;color:var(--green-dim)">Max: $${p.max.toLocaleString()}</span>` : ''}
+      <button onclick="deleteProgram(${p.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function deleteProgram(id) {
+  programs = programs.filter(p => p.id !== id);
+  localStorage.setItem('bb_programs', JSON.stringify(programs));
+  renderPrograms(); refreshProgramSelect(); refreshDashboard();
+}
+
+async function generateReport() {
+  const type   = document.getElementById('rw-type').value;
+  const sev    = document.getElementById('rw-sev').value;
+  const target = document.getElementById('rw-target').value.trim();
+  const desc   = document.getElementById('rw-desc').value.trim();
+  if (!desc || desc.length < 20) { showAlert('rw-alert','Describe the vulnerability in more detail','error'); return; }
+
+  const btn = document.getElementById('rw-btn');
+  btn.disabled = true; btn.textContent = '[ GENERATING... ]';
+  document.getElementById('report-output').innerHTML = '<div class="thinking-anim"><span></span><span></span><span></span></div>';
+
+  try {
+    const systemPrompt = `You are an expert bug bounty report writer. Write clear, professional vulnerability disclosure reports that are ready to submit to HackerOne, Bugcrowd, or similar platforms.
+
+The report should include:
+1. **Title** — one clear descriptive line
+2. **Severity** — ${sev} with brief justification
+3. **CVSS Vector** — estimated CVSS 3.1 score and vector string
+4. **Summary** — 2-3 sentence executive overview
+5. **Impact** — what an attacker could achieve
+6. **Vulnerability Details** — technical explanation
+7. **Steps to Reproduce** — numbered, clear steps a triage engineer can follow
+8. **Proof of Concept** — example payload or request (keep it conceptual, not a working exploit)
+9. **Remediation** — specific, actionable fix recommendations
+10. **References** — relevant CWE, OWASP, CVE references
+
+Write in clear, professional English. Be specific and thorough.`;
+
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: `Write a bug bounty report for:\nType: ${type}\nSeverity: ${sev}\nTarget: ${target || 'Not specified'}\n\nVulnerability description: ${desc}`
+        }]
+      })
+    });
+    const data = await res.json();
+    generatedReport = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('') || 'No response';
+    document.getElementById('report-output').textContent = generatedReport;
+    document.getElementById('copy-report-btn').style.display = '';
+    document.getElementById('dl-report-btn').style.display = '';
+  } catch(e) {
+    document.getElementById('report-output').textContent = 'Error: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = '[ GENERATE REPORT ]';
+}
+
+function copyReport() {
+  navigator.clipboard.writeText(generatedReport).then(() => showAlert('rw-alert','Report copied to clipboard!','success'));
+}
+function downloadReport() {
+  const blob = new Blob([generatedReport], { type:'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bug-report-${Date.now()}.txt`;
+  a.click();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberOps — Ghost Scanner</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="css/cyber.css">
+    <style>
+        /* ── GHOST SCANNER SPECIFIC STYLES ── */
+        :root {
+          --g: #00ff41;
+          --g2: #22c522;
+          --g3: #1a6a1a;
+          --gdim: #0d3a0d;
+          --r: #ff3333;
+          --y: #ffd700;
+          --b: #00bfff;
+          --p: #bf00ff;
+          --scan-bg: #000500;
+        }
+
+        body { background: var(--scan-bg) !important; }
+
+        /* Scanline overlay */
+        body::after {
+          content: '';
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,65,0.015) 2px, rgba(0,255,65,0.015) 4px);
+          pointer-events: none; z-index: 9999;
+        }
+
+        /* ── GLITCH TITLE ── */
+        @keyframes glitch1 {
+          0%,100%{clip-path:inset(0 0 98% 0);transform:translate(-2px,0)}
+          20%{clip-path:inset(20% 0 50% 0);transform:translate(2px,0)}
+          40%{clip-path:inset(60% 0 20% 0);transform:translate(-1px,0)}
+          60%{clip-path:inset(80% 0 5% 0);transform:translate(1px,0)}
+          80%{clip-path:inset(40% 0 40% 0);transform:translate(0,0)}
+        }
+        @keyframes glitch2 {
+          0%,100%{clip-path:inset(98% 0 0 0);transform:translate(2px,0)}
+          20%{clip-path:inset(50% 0 30% 0);transform:translate(-2px,0)}
+          40%{clip-path:inset(10% 0 80% 0);transform:translate(1px,0)}
+          60%{clip-path:inset(30% 0 60% 0);transform:translate(-1px,0)}
+          80%{clip-path:inset(70% 0 10% 0);transform:translate(0,0)}
+        }
+        @keyframes pulse-glow { 0%,100%{text-shadow:0 0 10px var(--g),0 0 20px var(--g)} 50%{text-shadow:0 0 20px var(--g),0 0 40px var(--g),0 0 60px var(--g2)} }
+        @keyframes scan-line { 0%{top:-5%} 100%{top:105%} }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        @keyframes type-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes progress-anim { from{background-position:0 0} to{background-position:40px 0} }
+
+        .ghost-title {
+          font-family: 'Orbitron', sans-serif;
+          font-size: clamp(18px, 3vw, 28px);
+          font-weight: 900;
+          color: var(--g);
+          letter-spacing: 4px;
+          position: relative;
+          display: inline-block;
+          animation: pulse-glow 3s infinite;
+        }
+        .ghost-title::before, .ghost-title::after {
+          content: attr(data-text);
+          position: absolute; top: 0; left: 0; width: 100%;
+        }
+        .ghost-title::before { color: var(--r); animation: glitch1 4s infinite; }
+        .ghost-title::after  { color: var(--b); animation: glitch2 4s infinite 0.1s; }
+
+        /* ── HEADER ── */
+        .ghost-header {
+          background: var(--scan-bg);
+          border-bottom: 1px solid var(--g3);
+          padding: 12px 20px;
+          display: flex; align-items: center; gap: 16px;
+          position: relative; overflow: hidden;
+        }
+        .ghost-header::after {
+          content: '';
+          position: absolute; left: 0; width: 100%; height: 1px;
+          background: linear-gradient(90deg, transparent, var(--g), transparent);
+          animation: scan-line 3s linear infinite;
+        }
+        .header-status { display: flex; gap: 16px; margin-left: auto; }
+        .hstat { font-size: 10px; letter-spacing: 1px; color: var(--g3); }
+        .hstat span { color: var(--g); }
+
+        /* ── MODULE TABS ── */
+        .module-tabs-wrap {
+          position: relative; background: var(--scan-bg);
+          border-bottom: 1px solid var(--g3);
+        }
+        .module-tabs {
+          display: flex; gap: 2px; padding: 8px 12px 0;
+          overflow-x: auto; scroll-behavior: smooth;
+        }
+        .module-tabs::-webkit-scrollbar { height: 4px; }
+        .module-tabs::-webkit-scrollbar-track { background: #010801; }
+        .module-tabs::-webkit-scrollbar-thumb { background: var(--g3); border-radius: 2px; }
+        .tabs-scroll-hint {
+          position: absolute; right: 0; top: 0; bottom: 1px; width: 36px;
+          background: linear-gradient(to right, transparent, var(--scan-bg));
+          pointer-events: none; display: flex; align-items: center;
+          justify-content: flex-end; padding-right: 6px;
+          color: var(--g3); font-size: 13px;
+        }
+        .module-tab {
+          padding: 5px 10px; font-size: 10px; letter-spacing: 1px;
+          color: var(--g3); border: 1px solid transparent;
+          border-bottom: none; background: none; cursor: pointer;
+          font-family: var(--font-mono); transition: all 0.15s;
+          border-radius: 4px 4px 0 0; white-space: nowrap; flex-shrink: 0;
+        }
+        .module-tab:hover { color: var(--g); border-color: var(--g3); }
+        .module-tab.active {
+          color: var(--g) !important; border-color: var(--g) !important;
+          background: #020d02 !important; border-bottom-color: var(--scan-bg) !important;
+          text-shadow: 0 0 10px var(--g), 0 0 20px var(--g);
+          box-shadow: 0 0 8px rgba(34,197,34,0.25);
+        }
+        .module-tab .tab-icon { margin-right: 5px; }
+
+
+        @media (max-width: 768px) {
+          .module-tabs { flex-wrap: wrap; gap: 4px; padding: 8px; }
+          .module-tab  { font-size: 9px; padding: 4px 8px; flex: 0 0 auto; border-radius: 3px; border-bottom: 1px solid; }
+          .all-mode-wrap { grid-template-columns: 1fr !important; }
+          .results-grid  { grid-template-columns: 1fr !important; }
+          #terminal { font-size: 11px; }
+          .scan-terminal { font-size: 11px; }
+          .target-bar input { font-size: 12px; }
+        }
+
+        /* ── TARGET INPUT ── */
+        .target-bar {
+          display: flex; gap: 8px; padding: 12px 16px;
+          background: #010801; border-bottom: 1px solid var(--g3);
+          align-items: center;
+        }
+        .target-prefix { color: var(--g3); font-size: 12px; white-space: nowrap; }
+        .target-input {
+          flex: 1; background: transparent; border: none;
+          color: var(--g); font-family: var(--font-mono); font-size: 13px;
+          outline: none; caret-color: var(--g);
+        }
+        .target-input::placeholder { color: #0d2e0d; }
+        .execute-btn {
+          padding: 6px 18px; font-family: var(--font-mono);
+          font-size: 11px; letter-spacing: 2px; cursor: pointer;
+          border: 1px solid var(--g); background: var(--gdim); color: var(--g);
+          transition: all 0.15s; white-space: nowrap;
+          -webkit-appearance: none; appearance: none; outline: none;
+        }
+        .execute-btn:hover:not(:disabled) {
+          background: var(--g); color: #000;
+          box-shadow: 0 0 20px var(--g);
+        }
+        .execute-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .quick-targets { display: flex; gap: 6px; padding: 6px 16px 8px; flex-wrap: wrap; }
+        .qt { font-size: 9px; padding: 3px 10px; border: 1px solid var(--g3); color: var(--g); background: var(--gdim); cursor: pointer; border-radius: 2px; letter-spacing: 0.5px; font-family: var(--font-mono); -webkit-appearance: none; appearance: none; }
+        .qt:hover { border-color: var(--g); color: var(--g); }
+
+        /* ── TERMINAL ── */
+        .terminal-wrap {
+          background: var(--scan-bg);
+          border: 1px solid var(--g3);
+          border-radius: 4px; margin: 10px 16px;
+          position: relative;
+        }
+        .terminal-titlebar {
+          padding: 6px 12px; border-bottom: 1px solid var(--gdim);
+          display: flex; align-items: center; gap: 8px;
+          font-size: 10px; color: var(--g3);
+        }
+        .tb-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .tb-r { background: #ff5f57; } .tb-y { background: #ffc602; } .tb-g { background: #29c940; }
+        .terminal-body {
+          padding: 12px; font-size: 11.5px; line-height: 1.7;
+          max-height: 320px; overflow-y: auto;
+          font-family: var(--font-mono);
+        }
+        .terminal-body::-webkit-scrollbar { width: 3px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: var(--g3); }
+        .tl { animation: type-in 0.1s ease; }
+        .tc { color: var(--g); }    /* command */
+        .ts { color: #00ff41; }     /* success */
+        .tw { color: var(--y); }    /* warning */
+        .te { color: var(--r); }    /* error */
+        .td { color: #0d4a0d; }     /* dim */
+        .tb { color: var(--b); }    /* blue/info */
+        .tp { color: var(--p); }    /* purple/special */
+        .ti { color: #1a8a1a; }     /* info */
+        .cursor { animation: blink 1s step-end infinite; color: var(--g); }
+
+        /* Progress bar in terminal */
+        .t-progress { margin: 4px 0; }
+        .t-pb {
+          display: inline-block; height: 8px; background: repeating-linear-gradient(
+            90deg, var(--g) 0px, var(--g) 8px, transparent 8px, transparent 12px
+          );
+          animation: progress-anim 0.5s linear infinite;
+          border-radius: 2px;
+        }
+
+        /* ── RESULTS PANELS ── */
+        .results-area { padding: 0 16px 16px; }
+        .result-section { margin-bottom: 12px; }
+        .rs-title {
+          font-size: 10px; letter-spacing: 2px; color: var(--g3);
+          padding: 8px 0 6px; border-bottom: 1px solid var(--gdim);
+          margin-bottom: 8px; display: flex; justify-content: space-between;
+        }
+        .rs-grid { display: grid; grid-template-columns: 140px 1fr; gap: 3px 12px; }
+        .rs-key { color: var(--g3); font-size: 11px; }
+        .rs-val { color: var(--g); font-size: 11px; word-break: break-all; }
+        .port-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid #0a150a; font-size: 11px; }
+        .port-row:last-child { border-bottom: none; }
+        .p-num { color: var(--y); min-width: 50px; font-weight: bold; }
+        .p-svc { color: var(--g); min-width: 100px; }
+        .p-ver { color: var(--g3); font-size: 10px; }
+        .p-banner { color: #0d5a0d; font-size: 10px; margin-top: 2px; word-break: break-all; }
+        .cve-pill {
+          display: inline-block; margin: 2px; padding: 2px 8px;
+          background: #300000; border: 1px solid var(--r);
+          border-radius: 2px; font-size: 10px; color: var(--r);
+          cursor: pointer;
+        }
+        .cve-pill:hover { background: #500000; }
+        .sec-grade {
+          font-size: 28px; font-family: 'Orbitron', sans-serif;
+          font-weight: 900; text-align: center; padding: 8px 0;
+        }
+        .grade-a { color: var(--g); text-shadow: 0 0 20px var(--g); }
+        .grade-b { color: #88ff00; }
+        .grade-c { color: var(--y); }
+        .grade-d { color: #ff8800; }
+        .grade-f { color: var(--r); text-shadow: 0 0 20px var(--r); }
+        .sec-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #0a150a; font-size: 10px; }
+        .dns-type { color: var(--y); min-width: 50px; font-size: 10px; }
+        .dns-val { color: var(--g); font-size: 10px; word-break: break-all; }
+        .dns-ttl { color: var(--g3); font-size: 9px; min-width: 60px; text-align: right; }
+        .subdomain-row { padding: 3px 0; border-bottom: 1px solid #080d08; font-size: 10px; display: flex; justify-content: space-between; }
+        .map-container { margin-top: 8px; }
+        .tag-pill { display: inline-block; margin: 2px; padding: 1px 6px; background: var(--gdim); border: 1px solid var(--g3); border-radius: 2px; font-size: 9px; color: var(--g3); }
+        .header-row { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px solid #080d08; font-size: 10px; }
+        .h-key { color: var(--g3); min-width: 200px; word-break: break-all; }
+        .h-val { color: var(--g); word-break: break-all; }
+        .risk-box { text-align: center; padding: 12px; }
+        .risk-level { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 3px; }
+        .scan-history-item { padding: 4px 8px; border-bottom: 1px solid #050a05; font-size: 10px; display: flex; gap: 12px; cursor: pointer; }
+        .scan-history-item:hover { background: #060d06; }
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+        .result-card { background: #020802; border: 1px solid var(--g3); border-radius: 4px; padding: 14px; }
+        .rc-title { font-size: 10px; letter-spacing: 2px; color: var(--g3); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--gdim); }
+        .all-mode-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; }
+        .no-data { color: var(--g3); font-size: 11px; text-align: center; padding: 16px; }
+    </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+        <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+        <div class="nav-section">
+            <div class="nav-label">CORE</div>
+            <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+            <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+            <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+            <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-label">INTELLIGENCE</div>
+            <a href="scanner.html" class="nav-item active"><div class="nav-dot"></div>GHOST SCANNER</a>
+            <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+            <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+            <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+            <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+        </div>
+    <div class="nav-section">
+            <div class="nav-label">TOOLS</div>
+            <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+            <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+            <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+            <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-label">ACCOUNT</div>
+            <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+            <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+        </div>
+        <div class="sidebar-footer">
+            <div class="u-label">OPERATOR</div>
+            <div class="u-name" id="sb-username">loading...</div>
+            <div class="u-status"><div class="status-dot"></div>GHOST MODE</div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <div class="main" style="background:var(--scan-bg)">
+
+        <!-- GHOST HEADER -->
+        <div class="ghost-header">
+            <div>
+                <div class="ghost-title" data-text="// GHOST SCANNER v5.0">// GHOST SCANNER v5.0</div>
+                <div style="font-size:9px;color:var(--g3);letter-spacing:2px;margin-top:2px">THREAT INTELLIGENCE • OSINT • NETWORK RECON</div>
+            </div>
+            <div class="header-status">
+                <div class="hstat">MODULES <span id="hs-modules">7</span></div>
+                <div class="hstat">SCANS <span id="hs-scans">0</span></div>
+                <div class="hstat">STATUS <span style="color:var(--g)">ONLINE</span></div>
+            </div>
+        </div>
+
+        <!-- MODULE TABS -->
+        <div class="module-tabs-wrap"><div class="module-tabs">
+            <button class="module-tab active" onclick="setModule('dns',this)"><span class="tab-icon">🔍</span>DNS RECON</button>
+            <button class="module-tab" onclick="setModule('geo',this)"><span class="tab-icon">🌍</span>GEO TRACE</button>
+            <button class="module-tab" onclick="setModule('whois',this)"><span class="tab-icon">📋</span>WHOIS</button>
+            <button class="module-tab" onclick="setModule('subdomains',this)"><span class="tab-icon">🕸</span>SUBDOMAINS</button>
+            <button class="module-tab" onclick="setModule('reverse',this)"><span class="tab-icon">🔄</span>REVERSE IP</button>
+            <button class="module-tab" onclick="setModule('asn',this)"><span class="tab-icon">🌐</span>ASN INTEL</button>
+            <button class="module-tab" onclick="setModule('archive',this)"><span class="tab-icon">📜</span>WEB ARCHIVE</button>
+            <button class="module-tab" onclick="setModule('exposure',this)" style="color:#00bfff;border-color:#00bfff"><span class="tab-icon">👁</span>MY EXPOSURE</button>
+            <button class="module-tab" onclick="setModule('all',this)" style="color:var(--y);border-color:var(--y)"><span class="tab-icon">💀</span>FULL SCAN</button>
+        </div>
+
+            <!-- TARGET INPUT -->
+            <div class="target-bar">
+                <span class="target-prefix">ghost@cyberops:~$</span>
+                <input class="target-input" id="target" placeholder="enter target IP or domain..." onkeydown="if(event.key==='Enter')execute()">
+                <button class="execute-btn" id="exec-btn" onclick="execute()">[ EXECUTE ]</button>
+                <button class="execute-btn" onclick="clearAll()" style="border-color:var(--g3);color:var(--g3)">CLEAR</button>
+            </div>
+            <div class="quick-targets">
+                <span style="font-size:9px;color:var(--g3);margin-right:4px">QUICK:</span>
+                <button class="qt" onclick="setTarget('1.1.1.1')">1.1.1.1</button>
+                <button class="qt" onclick="setTarget('8.8.8.8')">8.8.8.8</button>
+                <button class="qt" onclick="setTarget('scanme.nmap.org')">scanme.nmap.org</button>
+                <button class="qt" onclick="setTarget('google.com')">google.com</button>
+                <button class="qt" onclick="setTarget('cloudflare.com')">cloudflare.com</button>
+                <button class="qt" onclick="setTarget('github.com')">github.com</button>
+            </div>
+
+            <!-- TERMINAL -->
+            <div class="terminal-wrap">
+                <div class="terminal-titlebar">
+                    <div class="tb-dot tb-r"></div>
+                    <div class="tb-dot tb-y"></div>
+                    <div class="tb-dot tb-g"></div>
+                    <span style="margin-left:4px">ghost-scanner — terminal</span>
+                    <span id="term-status" style="margin-left:auto;color:var(--g)">IDLE</span>
+                </div>
+                <div class="terminal-body" id="terminal">
+                    <div class="tl td">╔════════════════════════════════════════════════════════════════╗</div>
+                    <div class="tl td">║  CYBEROPS GHOST SCANNER v5.0 — THREAT INTELLIGENCE ENGINE     ║</div>
+                    <div class="tl td">║  Modules: SHODAN • DNS • GEO • HTTP • WHOIS • SUBDOMAINS      ║</div>
+                    <div class="tl td">╚════════════════════════════════════════════════════════════════╝</div>
+                    <div class="tl td" style="margin-top:6px">// Select a module tab and enter a target to begin recon.</div>
+                    <div class="tl td">// Use FULL SCAN to run all 7 modules simultaneously.</div>
+                    <div class="tl"><span class="cursor">█</span></div>
+                </div>
+            </div>
+
+            <!-- RESULTS -->
+            <div class="results-area" id="results-area"></div>
+
+            <!-- SCAN HISTORY -->
+            <div style="margin:0 16px 16px">
+                <div style="font-size:10px;color:var(--g3);letter-spacing:2px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--gdim)">SCAN HISTORY</div>
+                <div id="history-list"><div class="no-data">No scans yet.</div></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="js/supabase.js"></script>
+    <script src="js/config.js"></script>
+    <script>
+        let activeModule = 'dns';
+        let scanCount = 0;
+        const scanHistory = [];
+
+        async function init() {
+          const user = await requireAuth();
+          if (!user) return;
+          const { data: p } = await getProfile(user.id);
+          document.getElementById('sb-username').textContent = p?.username || user.email;
+        }
+
+        function setModule(mod, el) {
+          activeModule = mod;
+          document.querySelectorAll('.module-tab').forEach(b => b.classList.remove('active'));
+          el.classList.add('active');
+          updatePlaceholder(mod);
+        }
+
+        function updatePlaceholder(mod) {
+          const hints = {
+            shodan: 'enter IP or domain for Shodan intelligence scan...',
+            dns: 'enter domain for DNS record enumeration (e.g. google.com)...',
+            geo: 'enter IP address for geolocation trace (e.g. 1.1.1.1)...',
+            headers: 'enter URL or domain for HTTP security probe (e.g. cloudflare.com)...',
+            whois: 'enter domain for WHOIS/RDAP registration lookup...',
+            subdomains: 'enter domain for subdomain enumeration (e.g. google.com)...',
+            reverse: 'enter IP for reverse lookup — find all domains on this IP...',
+            abuse: 'enter IP address to check abuse reports and threat score...',
+            ssl: 'enter domain for SSL/TLS certificate analysis and history (e.g. google.com)...',
+            email: 'enter domain to check SPF, DMARC, spoofing risk (e.g. gmail.com)...',
+            breach: 'enter domain to find data breaches (e.g. adobe.com)...',
+            asn: 'enter IP or ASN number to map network ownership (e.g. 1.1.1.1 or AS13335)...',
+            archive: 'enter domain to see Wayback Machine history (e.g. example.com)...',
+            cve: 'enter CVE ID or software name to search vulnerabilities (e.g. CVE-2021-44228 or log4j)...',
+            tech: 'enter URL to fingerprint technology stack (e.g. https://example.com)...',
+            exposure: 'press EXECUTE — auto-scans YOUR public IP, no target needed...',
+            all: 'enter target for FULL SCAN — all modules simultaneously...',
+          };
+          document.getElementById('target').placeholder = hints[mod] || 'enter target...';
+        }
+
+        function setTarget(t) {
+          document.getElementById('target').value = t;
+          document.getElementById('target').focus();
+        }
+
+        function clearAll() {
+          // Keep the boot sequence, only remove scan output
+          const term = document.getElementById('terminal');
+          const lines = term.querySelectorAll('.tl');
+          // Remove everything after the first 3 boot lines
+          Array.from(lines).slice(3).forEach(el => el.remove());
+          const cleared = document.createElement('div');
+          cleared.className = 'tl td';
+          cleared.textContent = '// Terminal cleared. Ready.';
+          term.appendChild(cleared);
+          document.getElementById('results-area').innerHTML = '';
+          document.getElementById('term-status').textContent = 'IDLE';
+          document.getElementById('target').value = '';
+        }
+
+        async function execute() {
+          const target = document.getElementById('target').value.trim();
+          if (!target) return;
+
+          const btn = document.getElementById('exec-btn');
+          btn.disabled = true;
+          btn.textContent = '[ RUNNING... ]';
+          document.getElementById('term-status').textContent = 'SCANNING';
+          document.getElementById('results-area').innerHTML = '';
+
+          const ts = () => new Date().toTimeString().slice(0, 8);
+          clearTerminal();
+          tl(`[${ts()}] MODULE: ${activeModule.toUpperCase()}`, 'tc');
+          tl(`[${ts()}] TARGET: ${target}`, 'tc');
+          tl(`[${ts()}] INITIATING GHOST SCAN...`, 'td');
+
+          scanCount++;
+          document.getElementById('hs-scans').textContent = scanCount;
+
+          try {
+            if (activeModule === 'all') {
+              await runFullScan(target, ts);
+            } else if (activeModule === 'abuse') {
+              await runRecon('abuse', target, ts);
+            } else if (activeModule === 'exposure') {
+              await runExposure(ts);
+            } else if (['ssl','email','breach','asn','archive','cve','tech'].includes(activeModule)) {
+              await runRecon(activeModule, target, ts);
+            } else if (activeModule === 'shodan') {
+              await runShodan(target, ts);
+            } else {
+              await runRecon(activeModule, target, ts);
+            }
+          } catch(e) {
+            tl(`[${ts()}] FATAL: ${e.message}`, 'te');
+          }
+
+          btn.disabled = false;
+          btn.textContent = '[ EXECUTE ]';
+          document.getElementById('term-status').textContent = 'COMPLETE';
+          addHistory(target, activeModule);
+        }
+
+        // ── SHODAN + CENSYS DUAL ENGINE ──
+        async function runShodan(target, ts) {
+          tl(`[${ts()}] DUAL-ENGINE SCAN: SHODAN + CENSYS...`, 'td');
+          showProgress(30);
+          const resp = await fetch('/scanner', {
+            method: 'POST', headers: {'content-type':'application/json'},
+            body: JSON.stringify({ target })
+          });
+          showProgress(80);
+          const d = await resp.json();
+          if (d.error) { tl(`[${ts()}] FATAL: ${d.error}`, 'te'); return; }
+          tl(`[${ts()}] TARGET: ${d.ip}${d.hostname ? ' (' + d.hostname + ')' : ''}`, 'ts');
+          tl('', 'td');
+          tl(`[${ts()}] ━━━ SHODAN (Free Search API) ━━━`, 'tp');
+          if (d.shodan && d.shodan.error) {
+            tl(`  ✗ ${d.shodan.error}`, 'te');
+            if (d.shodan.error.includes('SHODAN_API_KEY')) tl('  → Add SHODAN_API_KEY to Netlify env vars', 'tw');
+          } else if (d.shodan) {
+            tl(`  ORG: ${d.shodan.org} | ${d.shodan.city}, ${d.shodan.country}`, 'ti');
+            tl(`  PORTS: ${d.shodan.ports.length} open: ${d.shodan.ports.join(', ')}`, 'ts');
+            if (d.shodan.vulns && d.shodan.vulns.length) tl(`  ⚠ CVEs: ${d.shodan.vulns.join(', ')}`, 'te');
+            else tl('  ✓ No CVEs found', 'ts');
+          }
+          tl('', 'td');
+          tl(`[${ts()}] ━━━ CENSYS (Free 250/month) ━━━`, 'tb');
+          if (d.censys && d.censys.error) {
+            tl(`  ✗ ${d.censys.error}`, 'te');
+            if (d.censys.error.includes('CENSYS_API_ID')) tl('  → Add CENSYS_API_ID + CENSYS_API_SECRET to Netlify env vars', 'tw');
+          } else if (d.censys) {
+            tl(`  ORG: ${d.censys.org} | ASN: ${d.censys.asn || '?'} | ${d.censys.country}`, 'tb');
+            tl(`  PORTS: ${d.censys.ports.length} open: ${d.censys.ports.join(', ')}`, 'tb');
+            if (d.censys.labels && d.censys.labels.length) tl(`  LABELS: ${d.censys.labels.join(', ')}`, 'tb');
+          }
+          showProgress(100);
+          renderComparisonResults(d);
+        }
+
+        // ── RECON MODULE ──
+        async function runRecon(type, target, ts) {
+          const labels = { dns:'DNS RECON', geo:'GEO TRACE', headers:'HTTP PROBE', whois:'WHOIS/RDAP', subdomains:'SUBDOMAIN ENUM', reverse:'REVERSE IP' };
+          tl(`[${ts()}] RUNNING ${labels[type]}...`, 'td');
+          showProgress(50);
+          const resp = await fetch('/api/recon', {
+            method: 'POST', headers: {'content-type':'application/json'},
+            body: JSON.stringify({ type, target })
+          });
+          const d = await resp.json();
+          if (d.error) { tl(`[${ts()}] ERROR: ${d.error}`, 'te'); return; }
+          logReconResult(d, ts);
+          renderReconResult(d);
+        }
+
+        // ── FULL SCAN ──
+
+        // Auto-log critical findings to threat_logs
+        async function autoLogThreat(target, module, data) {
+          if (!sb || !currentUser) return;
+          let msg = null, severity = 'LOW';
+          if (module === 'abuse' && data.score >= 50) {
+            msg = `GHOST SCANNER: ${target} has abuse score ${data.score}% (${data.risk})`;
+            severity = data.score >= 75 ? 'CRITICAL' : 'HIGH';
+          } else if (module === 'cve' && data.results?.some(r => r.severity === 'CRITICAL')) {
+            const n = data.results.filter(r => r.severity === 'CRITICAL').length;
+            msg = `GHOST SCANNER: ${n} critical CVE(s) found for ${target}`;
+            severity = 'CRITICAL';
+          } else if (module === 'breach' && data.total_breaches > 0) {
+            msg = `GHOST SCANNER: ${data.total_breaches} data breach(es) found for ${target}`;
+            severity = 'HIGH';
+          }
+          if (msg) {
+            await sb.from('threat_logs').insert({ user_id: currentUser.id, message: msg, severity, source: 'GHOST SCANNER' });
+          }
+        }
+
+        async function runFullScan(target, ts) {
+          tl(`[${ts()}] 💀 FULL GHOST SCAN INITIATED`, 'tp');
+          tl(`[${ts()}] Running 8 OSINT modules in parallel...`, 'td');
+
+          const modules = ['dns', 'geo', 'whois', 'subdomains', 'reverse', 'asn', 'archive', 'abuse'];
+          const results = {};
+
+          showProgress(20);
+
+          const promises = modules.map(async mod => {
+            try {
+              if (mod === 'shodan') {
+                const r = await fetch('/scanner', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({target}) });
+                results.shodan = await r.json();
+                tl(`[${ts()}] ✓ SHODAN complete`, 'ts');
+              } else {
+                const r = await fetch('/api/recon', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({type:mod, target}) });
+                results[mod] = await r.json();
+                tl(`[${ts()}] ✓ ${mod.toUpperCase()} complete`, 'ts');
+              }
+            } catch(e) {
+              results[mod] = { error: e.message };
+              tl(`[${ts()}] ✗ ${mod.toUpperCase()} failed: ${e.message}`, 'te');
+            }
+          });
+
+          await Promise.all(promises);
+          showProgress(100);
+          tl(`[${ts()}] 💀 FULL SCAN COMPLETE`, 'tp');
+          renderFullScan(results, target);
+        }
+
+        function logReconResult(d, ts) {
+          if (d.error) { tl(`ERROR: ${d.error}`, 'te'); return; }
+          switch(d.module) {
+            case 'dns':
+              tl(`[${ts()}] DNS RECORDS FOUND: ${d.total} types`, 'ts');
+              Object.entries(d.records || {}).forEach(([type, recs]) => {
+                recs.forEach(r => tl(`  ${type.padEnd(6)} ${r.data}`, 'ti'));
+              });
+              break;
+            case 'geo':
+              tl(`[${ts()}] GEOLOCATION: ${d.city}, ${d.region}, ${d.country} ${d.flag||''}`, 'ts');
+              tl(`  ORG: ${d.org} | ASN: ${d.asn}`, 'ti');
+              tl(`  COORDS: ${d.lat}, ${d.lng}`, 'ti');
+              break;
+            case 'headers':
+              tl(`[${ts()}] HTTP ${d.status} | Security Grade: ${d.grade}`, d.grade.startsWith('A') ? 'ts' : d.grade === 'B' ? 'ti' : 'tw');
+              tl(`  Server: ${d.headers?.server || 'hidden'} | ${d.tech?.join(', ') || 'no tech fingerprint'}`, 'ti');
+              if (d.security?.missing?.length) tl(`  ⚠ Missing: ${d.security.missing.join(', ')}`, 'tw');
+              break;
+            case 'whois':
+              tl(`[${ts()}] WHOIS: ${d.registrar || 'unknown registrar'}`, 'ts');
+              tl(`  Created: ${d.created ? new Date(d.created).toLocaleDateString() : '?'} | Expires: ${d.expires ? new Date(d.expires).toLocaleDateString() : '?'}`, 'ti');
+              tl(`  NS: ${(d.nameservers||[]).join(', ')}`, 'ti');
+              break;
+            case 'subdomains':
+              tl(`[${ts()}] SUBDOMAINS: ${d.count} found`, d.count > 0 ? 'ts' : 'ti');
+              (d.results || []).slice(0, 10).forEach(r => tl(`  ${r.host} → ${r.ip}`, 'ti'));
+              if (d.count > 10) tl(`  ... and ${d.count - 10} more`, 'td');
+              break;
+            case 'ssl':
+              tl('['+ts()+'] SSL: '+d.total_certs+' certs found — '+d.status, d.status==='VALID'?'ts':'tw');
+              if(d.latest) tl('  Issuer: '+d.latest.issuer+'  Expires: '+d.latest.not_after, 'ti');
+              if(d.subdomains_discovered?.length) tl('  Subdomains found: '+d.subdomains_discovered.length, 'tw');
+              break;
+            case 'email':
+              tl('['+ts()+'] EMAIL SECURITY — Spoofing Risk: '+d.spoofing_risk, d.spoofing_risk==='CLEAN'||d.spoofing_risk==='LOW'?'ts':'te');
+              tl('  SPF: '+(d.spf?'✓ '+d.spf.all_policy:'✗ MISSING'), d.spf?'ti':'te');
+              tl('  DMARC: '+(d.dmarc?'✓ Policy='+d.dmarc.policy:'✗ MISSING'), d.dmarc?'ti':'te');
+              break;
+            case 'breach':
+              tl('['+ts()+'] BREACHES: '+d.total_breaches+' found, '+((d.total_accounts||0).toLocaleString())+' accounts exposed', d.total_breaches>0?'te':'ts');
+              (d.breaches||[]).slice(0,5).forEach(b=>tl('  ⚠ '+b.name+' ('+b.breach_date+') — '+(b.pwn_count||0).toLocaleString()+' accounts','te'));
+              break;
+            case 'asn':
+              tl('['+ts()+'] ASN: '+(d.asn?'AS'+d.asn+' — '+d.name:'Not found'), 'tb');
+              if(d.country) tl('  Country: '+d.country+' | RIR: '+(d.rir||'?'),'tb');
+              if(d.prefix_count) tl('  IP Ranges: '+d.prefix_count+' prefixes owned','tb');
+              break;
+            case 'archive':
+              tl('['+ts()+'] ARCHIVE: '+d.total_snapshots+' snapshots found', d.total_snapshots>0?'ts':'ti');
+              if(d.first_seen) tl('  First archived: '+d.first_seen?.slice(0,8),'ti');
+              if(d.latest_snapshot) tl('  Latest: '+d.latest_snapshot.timestamp?.slice(0,8),'ti');
+              break;
+            case 'cve':
+              tl('['+ts()+'] CVE SEARCH: '+d.total+' results for "'+d.target+'"', 'ts');
+              (d.results||[]).slice(0,3).forEach(c=>tl('  '+c.id+' ['+c.severity+' '+c.score+'] '+c.description?.slice(0,80),'te'));
+              break;
+            case 'tech':
+              tl('['+ts()+'] TECH SCAN: '+d.count+' technologies detected', 'ts');
+              (d.technologies||[]).forEach(t=>tl('  ├─ '+t.name+' ('+t.cat+')'+(t.ver?' v'+t.ver:''),'ti'));
+              break;
+            case 'exposure':
+              tl('['+ts()+'] YOUR IP: '+d.your_ip, 'tb');
+              if(d.summary) tl('  Location: '+d.summary.country+' | ISP: '+d.summary.isp,'tb');
+              if(d.summary) tl('  Abuse Score: '+d.summary.abuse_score+'% — '+d.summary.risk,'te');
+              break;
+            case 'abuse':
+              tl(`[${ts()}] ABUSE SCORE: ${d.score}% — ${d.risk}`, d.score >= 50 ? 'te' : d.score >= 20 ? 'tw' : 'ts');
+              tl(`  Reports: ${d.total_reports} | TOR: ${d.is_tor ? 'YES ⚠' : 'NO'} | ISP: ${d.isp}`, 'ti');
+              break;
+            case 'reverse':
+              tl(`[${ts()}] REVERSE IP: ${d.count} domains on this IP`, d.count > 5 ? 'tw' : 'ts');
+              (d.results || []).slice(0, 10).forEach(r => tl(`  ${r}`, 'ti'));
+              if (d.count > 10) tl(`  ... and ${d.count - 10} more`, 'td');
+              break;
+          }
+        }
+
+        // ── RENDER RESULTS ──
+        function renderShodanResults(d) {
+          const risk = d.vulns.length > 0 ? 'HIGH' : d.ports.filter(p=>[21,23,3389,5900].includes(p)).length > 0 ? 'MEDIUM' : 'LOW';
+          const riskColor = risk === 'HIGH' ? 'var(--r)' : risk === 'MEDIUM' ? 'var(--y)' : 'var(--g)';
+          document.getElementById('results-area').innerHTML = `
+            <div class="results-grid">
+              <div class="result-card">
+                <div class="rc-title">HOST INTELLIGENCE</div>
+                <div class="rs-grid">
+                  <div class="rs-key">IP ADDRESS</div><div class="rs-val" style="color:#fff">${d.ip}</div>
+                  <div class="rs-key">HOSTNAME</div><div class="rs-val">${d.hostname || d.hostnames[0] || '—'}</div>
+                  <div class="rs-key">COUNTRY</div><div class="rs-val">${d.country}</div>
+                  <div class="rs-key">CITY</div><div class="rs-val">${d.city}</div>
+                  <div class="rs-key">ORGANISATION</div><div class="rs-val">${d.org}</div>
+                  <div class="rs-key">ISP</div><div class="rs-val">${d.isp}</div>
+                  <div class="rs-key">OS</div><div class="rs-val">${d.os || 'Not detected'}</div>
+                  <div class="rs-key">LAST SCAN</div><div class="rs-val" style="font-size:10px">${d.last_update ? new Date(d.last_update).toLocaleString() : '—'}</div>
+                </div>
+              </div>
+              <div class="result-card">
+                <div class="rc-title">RISK ASSESSMENT</div>
+                <div class="risk-box">
+                  <div class="risk-level" style="color:${riskColor};text-shadow:0 0 20px ${riskColor}">${risk}</div>
+                  <div style="font-size:9px;color:var(--g3);letter-spacing:2px;margin-top:4px">THREAT LEVEL</div>
+                </div>
+                <div style="margin-top:8px">
+                  ${d.vulns.length > 0 ? `<div style="color:var(--r);font-size:11px;margin-bottom:4px">⚠ ${d.vulns.length} CVE(s) detected</div>` : '<div style="color:var(--g);font-size:11px">✓ No CVEs in Shodan DB</div>'}
+                  <div style="font-size:11px;color:var(--g3)">${d.ports.length} open ports</div>
+                  ${d.hostnames.length > 1 ? `<div style="font-size:10px;color:var(--g3);margin-top:4px">Hostnames: ${d.hostnames.join(', ')}</div>` : ''}
+                </div>
+              </div>
+            </div>
+            ${d.ports.length ? `
+            <div class="result-card" style="margin-top:10px">
+              <div class="rc-title">OPEN PORTS & SERVICES <span style="color:var(--y)">${d.ports.length} found</span></div>
+              ${(d.services.length ? d.services : d.ports.map(p=>({port:p,transport:'tcp',product:null,version:null,banner:null,tags:[]}))).map(s => `
+                <div class="port-row">
+                  <div class="p-num">${s.port}/${(s.transport||'tcp').toUpperCase()}</div>
+                  <div class="p-svc">${s.product || guessService(s.port)}</div>
+                  <div class="p-ver">${s.version || ''}</div>
+                  <div style="margin-left:auto">${(s.tags||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('')}</div>
+                </div>
+                ${s.banner ? `<div class="p-banner">${escHtml(s.banner.slice(0,150))}</div>` : ''}
+              `).join('')}
+            </div>` : ''}
+            ${d.vulns.length ? `
+            <div class="result-card" style="margin-top:10px;border-color:var(--r)">
+              <div class="rc-title" style="color:var(--r)">⚠ KNOWN VULNERABILITIES (CVEs) <span>${d.vulns.length} found</span></div>
+              <div>${d.vulns.map(c=>`<span class="cve-pill" onclick="window.open('https://nvd.nist.gov/vuln/detail/${c}','_blank')" title="View on NVD">${c}</span>`).join('')}</div>
+              <div style="font-size:9px;color:var(--g3);margin-top:8px">Click any CVE to view full details on NVD database</div>
+            </div>` : ''}
+          `;
+        }
+
+        function renderReconResult(d) {
+          const area = document.getElementById('results-area');
+          if (d.error && !d.results) { area.innerHTML = `<div class="result-card"><div class="rc-title">ERROR</div><div style="color:var(--r);font-size:11px">${d.error}</div></div>`; return; }
+
+          switch(d.module) {
+            case 'dns':      area.innerHTML = renderDNS(d); break;
+            case 'geo':      area.innerHTML = renderGeo(d); break;
+            case 'headers':  area.innerHTML = renderHeaders(d); break;
+            case 'whois':    area.innerHTML = renderWhois(d); break;
+            case 'subdomains': area.innerHTML = renderSubdomains(d); break;
+            case 'reverse':  area.innerHTML = renderReverse(d); break;
+            case 'ssl':      area.innerHTML = renderSSL(d); break;
+            case 'email':    area.innerHTML = renderEmail(d); break;
+            case 'breach':   area.innerHTML = renderBreach(d); break;
+            case 'asn':      area.innerHTML = renderASN(d); break;
+            case 'archive':  area.innerHTML = renderArchive(d); break;
+            case 'cve':      area.innerHTML = renderCVE(d); break;
+            case 'tech':     area.innerHTML = renderTech(d); break;
+            case 'exposure': area.innerHTML = renderExposure(d); break;
+            case 'abuse':    area.innerHTML = renderAbuse(d); break;
+          }
+        }
+
+        function renderDNS(d) {
+          if (!d.records || !Object.keys(d.records).length) return `<div class="result-card"><div class="rc-title">DNS RECORDS</div><div class="no-data">No records found</div></div>`;
+          const rows = Object.entries(d.records).map(([type, recs]) =>
+            recs.map(r => `<div class="port-row"><span class="dns-type">${type}</span><span class="dns-val">${r.data}</span><span class="dns-ttl">TTL ${r.ttl}s</span></div>`).join('')
+          ).join('');
+          return `<div class="result-card"><div class="rc-title">DNS RECORDS FOR ${d.target} <span style="color:var(--y)">${Object.keys(d.records).length} types</span></div>${rows}</div>`;
+        }
+
+        function renderGeo(d) {
+          if (!d.success && !d.country) return `<div class="result-card"><div class="rc-title">GEOLOCATION</div><div class="no-data">Could not locate this IP</div></div>`;
+          return `<div class="results-grid">
+            <div class="result-card">
+              <div class="rc-title">GEOLOCATION</div>
+              <div class="rs-grid">
+                <div class="rs-key">IP</div><div class="rs-val" style="color:#fff">${d.ip}</div>
+                <div class="rs-key">TYPE</div><div class="rs-val">${d.type || '—'}</div>
+                <div class="rs-key">COUNTRY</div><div class="rs-val">${d.flag||''} ${d.country} (${d.country_code})</div>
+                <div class="rs-key">REGION</div><div class="rs-val">${d.region || '—'}</div>
+                <div class="rs-key">CITY</div><div class="rs-val">${d.city || '—'}</div>
+                <div class="rs-key">COORDINATES</div><div class="rs-val">${d.lat}, ${d.lng}</div>
+                <div class="rs-key">TIMEZONE</div><div class="rs-val">${d.timezone || '—'}</div>
+              </div>
+            </div>
+            <div class="result-card">
+              <div class="rc-title">NETWORK OWNER</div>
+              <div class="rs-grid">
+                <div class="rs-key">ORG</div><div class="rs-val">${d.org || '—'}</div>
+                <div class="rs-key">ISP</div><div class="rs-val">${d.isp || '—'}</div>
+                <div class="rs-key">ASN</div><div class="rs-val">${d.asn ? 'AS'+d.asn : '—'}</div>
+              </div>
+              <div style="margin-top:12px;text-align:center">
+                <a href="https://www.google.com/maps/@${d.lat},${d.lng},12z" target="_blank" style="color:var(--b);font-size:10px;text-decoration:none">📍 View on Map →</a>
+              </div>
+            </div>
+          </div>`;
+        }
+
+        function renderHeaders(d) {
+          const gradeClass = { 'A+':'a','A':'a','B':'b','C':'c','D':'d','F':'f' }[d.security?.grade] || 'f';
+          const importantHeaders = ['server','content-type','x-frame-options','strict-transport-security','content-security-policy','x-content-type-options','referrer-policy','x-xss-protection'];
+          return `<div class="results-grid">
+            <div class="result-card">
+              <div class="rc-title">SECURITY GRADE</div>
+              <div class="sec-grade grade-${gradeClass}">${d.security?.grade || 'F'}</div>
+              <div style="text-align:center;font-size:10px;color:var(--g3)">${d.security?.score || 0}% headers present</div>
+              <div style="margin-top:10px">
+                ${(d.security?.present||[]).map(h=>`<div class="sec-row"><span style="color:var(--g)">✓ ${h}</span></div>`).join('')}
+                ${(d.security?.missing||[]).map(h=>`<div class="sec-row"><span style="color:var(--r)">✗ ${h}</span></div>`).join('')}
+              </div>
+            </div>
+            <div class="result-card">
+              <div class="rc-title">HTTP RESPONSE</div>
+              <div class="rs-grid">
+                <div class="rs-key">STATUS</div><div class="rs-val" style="color:${d.status < 400 ? 'var(--g)' : 'var(--r)'}">${d.status}</div>
+                <div class="rs-key">SERVER</div><div class="rs-val">${d.headers?.server || 'hidden'}</div>
+                <div class="rs-key">TECH</div><div class="rs-val">${d.tech?.join(', ') || 'not disclosed'}</div>
+                <div class="rs-key">REDIRECTED</div><div class="rs-val">${d.redirect_chain}</div>
+              </div>
+              <div style="margin-top:10px">
+                ${importantHeaders.filter(h=>d.headers?.[h]).map(h=>`
+                  <div class="header-row">
+                    <span class="h-key">${h}</span>
+                    <span class="h-val">${escHtml(String(d.headers[h]).slice(0,80))}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>`;
+        }
+
+        function renderWhois(d) {
+          if (d.error) return `<div class="result-card"><div class="rc-title">WHOIS/RDAP</div><div style="color:var(--y);font-size:11px">${d.error}</div></div>`;
+          const statusColors = { active:'var(--g)', ok:'var(--g)' };
+          return `<div class="result-card">
+            <div class="rc-title">WHOIS/RDAP — ${d.domain || d.target}</div>
+            <div class="rs-grid">
+              <div class="rs-key">REGISTRAR</div><div class="rs-val">${d.registrar || '—'}</div>
+              <div class="rs-key">REGISTRANT</div><div class="rs-val">${d.registrant || 'Redacted (GDPR)'}</div>
+              <div class="rs-key">CREATED</div><div class="rs-val">${d.created ? new Date(d.created).toLocaleDateString() : '—'}</div>
+              <div class="rs-key">UPDATED</div><div class="rs-val">${d.updated ? new Date(d.updated).toLocaleDateString() : '—'}</div>
+              <div class="rs-key">EXPIRES</div><div class="rs-val" style="color:${isExpiringSoon(d.expires) ? 'var(--y)' : 'var(--g)'}">${d.expires ? new Date(d.expires).toLocaleDateString() : '—'}</div>
+              <div class="rs-key">STATUS</div><div class="rs-val">${(d.status||[]).join(', ') || '—'}</div>
+            </div>
+            ${d.nameservers?.length ? `<div style="margin-top:10px"><div style="font-size:10px;color:var(--g3);margin-bottom:4px">NAMESERVERS</div>${d.nameservers.map(n=>`<div style="font-size:11px;color:var(--g);padding:2px 0">${n}</div>`).join('')}</div>` : ''}
+          </div>`;
+        }
+
+        function renderSubdomains(d) {
+          if (!d.results?.length) return `<div class="result-card"><div class="rc-title">SUBDOMAINS</div><div class="no-data">${d.error || 'No subdomains found'}</div></div>`;
+          return `<div class="result-card">
+            <div class="rc-title">SUBDOMAINS OF ${d.target} <span style="color:var(--y)">${d.count} found</span></div>
+            <div style="max-height:400px;overflow-y:auto">
+              ${d.results.map(r=>`<div class="subdomain-row"><span style="color:var(--g)">${r.host}</span><span style="color:var(--g3)">${r.ip}</span></div>`).join('')}
+            </div>
+          </div>`;
+        }
+
+        function renderReverse(d) {
+          if (!d.results?.length) return `<div class="result-card"><div class="rc-title">REVERSE IP</div><div class="no-data">${d.error || 'No domains found on this IP'}</div></div>`;
+          return `<div class="result-card">
+            <div class="rc-title">DOMAINS ON ${d.target} <span style="color:var(--y)">${d.count} found</span></div>
+            <div style="max-height:400px;overflow-y:auto">
+              ${d.results.map(r=>`<div class="subdomain-row"><span style="color:var(--g)">${r}</span></div>`).join('')}
+            </div>
+          </div>`;
+        }
+
+        function renderFullScan(results, target) {
+          const parts = [];
+          if (results.shodan && !results.shodan.error) parts.push(renderShodanCard(results.shodan));
+          if (results.geo && !results.geo.error) parts.push(renderGeoCard(results.geo));
+          if (results.whois && !results.whois.error) parts.push(renderWhoisCard(results.whois));
+          if (results.dns && !results.dns.error) parts.push(renderDNSCard(results.dns));
+          if (results.headers && !results.headers.error) parts.push(renderHeadersCard(results.headers));
+          if (results.subdomains) parts.push(renderSubCard(results.subdomains));
+          if (results.reverse) parts.push(renderRevCard(results.reverse));
+          if (results.abuse && !results.abuse.error) parts.push(renderAbuseCard(results.abuse));
+          if (results.ssl)     parts.push(renderSSL(results.ssl));
+          if (results.email)   parts.push(renderEmail(results.email));
+          if (results.breach)  parts.push(renderBreach(results.breach));
+          if (results.asn)     parts.push(renderASN(results.asn));
+          if (results.archive) parts.push(renderArchive(results.archive));
+          if (results.cve)     parts.push(renderCVE(results.cve));
+          if (results.tech)    parts.push(renderTech(results.tech));
+          document.getElementById('results-area').innerHTML = `<div class="all-mode-wrap">${parts.join('')}</div>`;
+        }
+
+        function renderShodanCard(d) {
+          return `<div class="result-card"><div class="rc-title">⚡ SHODAN</div>
+            <div class="rs-grid">
+              <div class="rs-key">IP</div><div class="rs-val">${d.ip}</div>
+              <div class="rs-key">ORG</div><div class="rs-val">${d.org}</div>
+              <div class="rs-key">LOCATION</div><div class="rs-val">${d.city}, ${d.country}</div>
+              <div class="rs-key">OS</div><div class="rs-val">${d.os||'?'}</div>
+              <div class="rs-key">OPEN PORTS</div><div class="rs-val" style="color:var(--y)">${d.ports.join(', ')||'none'}</div>
+              <div class="rs-key">CVEs</div><div class="rs-val" style="color:${d.vulns.length?'var(--r)':'var(--g)'}">${d.vulns.length||0}</div>
+            </div></div>`;
+        }
+        function renderGeoCard(d) {
+          if (d.error) return `<div class="result-card"><div class="rc-title">🌍 GEO TRACE</div><div style="color:var(--r)">${d.error}</div></div>`;
+          return `<div class="result-card"><div class="rc-title">🌍 GEO TRACE</div>
+            <div class="rs-grid">
+              <div class="rs-key">LOCATION</div><div class="rs-val">${d.flag||''} ${d.city||'?'}, ${d.country||'?'}</div>
+              <div class="rs-key">COORDS</div><div class="rs-val">${d.lat??'?'}, ${d.lng??'?'}</div>
+              <div class="rs-key">ORG</div><div class="rs-val">${d.org||'?'}</div>
+              <div class="rs-key">ASN</div><div class="rs-val">${d.asn?'AS'+d.asn:'—'}</div>
+            </div></div>`;
+        }
+        function renderWhoisCard(d) {
+          if (d.error) return `<div class="result-card"><div class="rc-title">📋 WHOIS</div><div class="no-data">${d.error}</div></div>`;
+          return `<div class="result-card"><div class="rc-title">📋 WHOIS</div>
+            <div class="rs-grid">
+              <div class="rs-key">REGISTRAR</div><div class="rs-val">${d.registrar||'—'}</div>
+              <div class="rs-key">CREATED</div><div class="rs-val">${d.created?new Date(d.created).toLocaleDateString():'—'}</div>
+              <div class="rs-key">EXPIRES</div><div class="rs-val">${d.expires?new Date(d.expires).toLocaleDateString():'—'}</div>
+              <div class="rs-key">NS</div><div class="rs-val">${(d.nameservers||[]).slice(0,2).join(', ')||'—'}</div>
+            </div></div>`;
+        }
+        function renderDNSCard(d) {
+          const total = Object.values(d.records||{}).reduce((s,r)=>s+r.length,0);
+          return `<div class="result-card"><div class="rc-title">🔍 DNS RECON <span style="color:var(--y)">${total} records</span></div>
+            ${Object.entries(d.records||{}).slice(0,6).map(([t,recs])=>
+              recs.slice(0,2).map(r=>`<div class="port-row"><span class="dns-type">${t}</span><span class="dns-val" style="font-size:10px">${r.data.slice(0,50)}</span></div>`).join('')
+            ).join('')}</div>`;
+        }
+        function renderHeadersCard(d) {
+          const gc = {'A+':'a','A':'a','B':'b','C':'c','D':'d','F':'f'}[d.security?.grade]||'f';
+          return `<div class="result-card"><div class="rc-title">📡 HTTP PROBE</div>
+            <div style="text-align:center;margin:8px 0">
+              <div class="sec-grade grade-${gc}" style="font-size:24px">${d.security?.grade||'?'}</div>
+              <div style="font-size:9px;color:var(--g3)">SECURITY GRADE</div>
+            </div>
+            <div class="rs-grid">
+              <div class="rs-key">STATUS</div><div class="rs-val">${d.status}</div>
+              <div class="rs-key">SERVER</div><div class="rs-val">${d.headers?.server||'hidden'}</div>
+              <div class="rs-key">MISSING</div><div class="rs-val" style="color:var(--y);font-size:10px">${(d.security?.missing||[]).length} headers</div>
+            </div></div>`;
+        }
+        function renderSubCard(d) {
+          return `<div class="result-card"><div class="rc-title">🕸 SUBDOMAINS</div>
+            ${d.error ? `<div class="no-data">${d.error}</div>` : `
+              <div style="font-size:20px;font-family:'Orbitron',sans-serif;text-align:center;color:var(--y);padding:8px">${d.count}</div>
+              <div style="text-align:center;font-size:9px;color:var(--g3)">SUBDOMAINS FOUND</div>
+              ${(d.results||[]).slice(0,5).map(r=>`<div class="subdomain-row" style="font-size:10px"><span style="color:var(--g)">${r.host}</span></div>`).join('')}
+              ${d.count > 5 ? `<div style="font-size:9px;color:var(--g3);text-align:center;margin-top:4px">+${d.count-5} more</div>` : ''}
+            `}
+          </div>`;
+        }
+        function renderAbuseCard(d) {
+          const sc = d.score >= 80 ? 'var(--r)' : d.score >= 20 ? 'var(--y)' : 'var(--g)';
+          return `<div class="result-card" style="border-color:${sc}"><div class="rc-title">🚨 THREAT CHECK</div>
+            <div style="text-align:center;padding:8px 0">
+              <div style="font-size:24px;font-family:'Orbitron',sans-serif;color:${sc};font-weight:900">${d.score}%</div>
+              <div style="font-size:9px;color:${sc};letter-spacing:2px">ABUSE SCORE</div>
+              <div style="font-size:12px;color:${sc};margin-top:4px">${d.risk}</div>
+            </div>
+            <div class="rs-grid">
+              <div class="rs-key">REPORTS</div><div class="rs-val" style="color:${d.total_reports>0?'var(--r)':'var(--g)'}">${d.total_reports}</div>
+              <div class="rs-key">TOR</div><div class="rs-val" style="color:${d.is_tor?'var(--r)':'var(--g)'}">${d.is_tor?'YES':'NO'}</div>
+              <div class="rs-key">ISP</div><div class="rs-val" style="font-size:10px">${d.isp||'—'}</div>
+            </div></div>`;
+        }
+        function renderRevCard(d) {
+          return `<div class="result-card"><div class="rc-title">🔄 REVERSE IP</div>
+            ${d.error ? `<div class="no-data">${d.error}</div>` : `
+              <div style="font-size:20px;font-family:'Orbitron',sans-serif;text-align:center;color:${d.count>10?'var(--r)':'var(--y)'};padding:8px">${d.count}</div>
+              <div style="text-align:center;font-size:9px;color:var(--g3)">DOMAINS SHARING THIS IP</div>
+              ${(d.results||[]).slice(0,5).map(r=>`<div class="subdomain-row" style="font-size:10px"><span style="color:var(--g)">${r}</span></div>`).join('')}
+              ${d.count > 5 ? `<div style="font-size:9px;color:var(--g3);text-align:center;margin-top:4px">+${d.count-5} more</div>` : ''}
+            `}
+          </div>`;
+        }
+
+        // ── TERMINAL HELPERS ──
+        function tl(text, cls='ti') {
+          const term = document.getElementById('terminal');
+          const d = document.createElement('div');
+          d.className = `tl ${cls}`;
+          d.textContent = text;
+          term.appendChild(d);
+          term.scrollTop = term.scrollHeight;
+        }
+        function clearTerminal() {
+          document.getElementById('terminal').innerHTML = '';
+        }
+        function showProgress(pct) {
+          const term = document.getElementById('terminal');
+          let bar = document.getElementById('t-prog-bar');
+          if (!bar) {
+            const div = document.createElement('div');
+            div.className = 'tl t-progress';
+            div.id = 't-prog-bar';
+            term.appendChild(div);
+          }
+          bar = document.getElementById('t-prog-bar');
+          const blocks = Math.round(pct / 2);
+          bar.innerHTML = `<span class="td">[</span><span class="t-pb" style="width:${blocks * 3}px"></span><span class="td">] ${pct}%</span>`;
+          term.scrollTop = term.scrollHeight;
+        }
+
+        // ── SCAN HISTORY ──
+        function addHistory(target, module) {
+          scanHistory.unshift({ target, module: module.toUpperCase(), time: new Date().toLocaleTimeString() });
+          if (scanHistory.length > 20) scanHistory.pop();
+          // Save scan to Supabase for analytics tracking
+          if (typeof sb !== 'undefined' && sb && typeof currentUser !== 'undefined' && currentUser) {
+            sb.from('scan_logs').insert({ user_id: currentUser.id, target, module: module.toUpperCase() }).catch(()=>{});
+          }
+          // Increment topbar scan counter
+          const tbScans = document.getElementById('tb-scans');
+          if (tbScans) tbScans.textContent = (parseInt(tbScans.textContent) || 0) + 1;
+          document.getElementById('history-list').innerHTML = scanHistory.map(h =>
+            `<div class="scan-history-item" onclick="setTarget('${h.target}')">
+              <span style="color:var(--g)">${h.target}</span>
+              <span style="color:var(--y)">${h.module}</span>
+              <span style="color:var(--g3)">${h.time}</span>
+            </div>`
+          ).join('');
+        }
+
+        // ── UTILS ──
+        function guessService(p) {
+          return {21:'FTP',22:'SSH',23:'TELNET',25:'SMTP',53:'DNS',80:'HTTP',110:'POP3',143:'IMAP',443:'HTTPS',445:'SMB',3306:'MySQL',3389:'RDP',5432:'PostgreSQL',5900:'VNC',6379:'Redis',8080:'HTTP-Alt',8443:'HTTPS-Alt',27017:'MongoDB'}[p]||'UNKNOWN';
+        }
+        function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function isExpiringSoon(dateStr) {
+          if (!dateStr) return false;
+          const diff = new Date(dateStr) - new Date();
+          return diff > 0 && diff < 90 * 24 * 60 * 60 * 1000;
+        }
+
+
+
+        function renderAbuse(d) {
+          if (d.error) return `<div class="result-card"><div class="rc-title">🚨 THREAT CHECK</div><div style="color:var(--r);font-size:11px">✗ ${d.error}</div>${d.error.includes('ABUSEIPDB_API_KEY') ? '<div style="color:var(--y);font-size:10px;margin-top:6px">→ Already added to Netlify env vars — redeploy needed</div>' : ''}</div>`;
+          const scoreColor = d.score >= 80 ? 'var(--r)' : d.score >= 50 ? '#ff6600' : d.score >= 20 ? 'var(--y)' : 'var(--g)';
+          const riskBg = d.score >= 80 ? '#2a0000' : d.score >= 50 ? '#1a1000' : d.score >= 20 ? '#1a1a00' : '#002a00';
+          const catNames = {1:'DNS Compromise',2:'DNS Poisoning',3:'Fraud Orders',4:'DDoS Attack',5:'FTP Brute-Force',6:'Ping of Death',7:'Phishing',8:'Fraud VoIP',9:'Open Proxy',10:'Web Spam',11:'Email Spam',12:'Blog Spam',13:'VPN IP',14:'Port Scan',15:'Hacking',16:'SQL Injection',17:'Email Spoofing',18:'Brute-Force',19:'Bad Web Bot',20:'Exploited Host',21:'Web App Attack',22:'SSH Brute-Force',23:'IoT Targeted'};
+          const allCats = [...new Set((d.recent_reports||[]).flatMap(r => r.categories||[]))];
+          return `<div class="results-grid">
+            <div class="result-card" style="border-color:${scoreColor}">
+              <div class="rc-title">🚨 THREAT INTELLIGENCE — ${d.ip}</div>
+              <div style="text-align:center;padding:16px 0;background:${riskBg};border-radius:4px;margin-bottom:12px">
+                <div style="font-size:36px;font-family:'Orbitron',sans-serif;color:${scoreColor};font-weight:900">${d.score}%</div>
+                <div style="font-size:9px;letter-spacing:2px;color:${scoreColor};margin-top:4px">ABUSE CONFIDENCE SCORE</div>
+                <div style="font-size:14px;font-family:'Orbitron',sans-serif;color:${scoreColor};margin-top:6px;letter-spacing:3px">${d.risk}</div>
+              </div>
+              <div class="rs-grid">
+                <div class="rs-key">TOTAL REPORTS</div><div class="rs-val" style="color:${d.total_reports>0?'var(--r)':'var(--g)'}">${d.total_reports}</div>
+                <div class="rs-key">DISTINCT IPs</div><div class="rs-val">${d.distinct_users}</div>
+                <div class="rs-key">LAST REPORTED</div><div class="rs-val" style="font-size:10px">${d.last_reported ? new Date(d.last_reported).toLocaleString() : 'Never'}</div>
+                <div class="rs-key">TOR EXIT NODE</div><div class="rs-val" style="color:${d.is_tor?'var(--r)':'var(--g)'}">${d.is_tor ? '⚠ YES' : '✓ NO'}</div>
+                <div class="rs-key">WHITELISTED</div><div class="rs-val">${d.is_whitelisted ? '✓ YES' : 'NO'}</div>
+                <div class="rs-key">ISP</div><div class="rs-val">${d.isp||'—'}</div>
+                <div class="rs-key">DOMAIN</div><div class="rs-val">${d.domain||'—'}</div>
+                <div class="rs-key">USAGE TYPE</div><div class="rs-val" style="font-size:10px">${d.usage_type||'—'}</div>
+                <div class="rs-key">COUNTRY</div><div class="rs-val">${d.country||'—'}</div>
+              </div>
+              ${allCats.length ? `<div style="margin-top:10px"><div style="font-size:9px;color:var(--g3);letter-spacing:1px;margin-bottom:6px">ATTACK CATEGORIES</div>
+                ${allCats.map(c=>`<span class="cve-pill" style="border-color:var(--y);color:var(--y);background:#1a1000">${catNames[c]||'Category '+c}</span>`).join('')}</div>` : ''}
+            </div>
+            ${d.recent_reports?.length ? `<div class="result-card">
+              <div class="rc-title">RECENT ABUSE REPORTS <span style="color:var(--r)">${d.recent_reports.length} shown</span></div>
+              ${d.recent_reports.map(r=>`<div style="padding:8px 0;border-bottom:1px solid #0a100a">
+                <div style="font-size:10px;color:var(--y)">${new Date(r.reported_at).toLocaleString()} — ${r.reporter_country||'?'}</div>
+                <div style="font-size:10px;color:var(--r);margin:2px 0">${(r.categories||[]).map(c=>catNames[c]||'Cat'+c).join(', ')}</div>
+                ${r.comment ? `<div style="font-size:9px;color:#1a6a1a;margin-top:2px">${r.comment}</div>` : ''}
+              </div>`).join('')}
+            </div>` : ''}
+          </div>`;
+        }
+
+
+        async function runExposure(ts) {
+          tl('['+ts()+'] SCANNING YOUR PUBLIC IP...', 'tb');
+          showProgress(40);
+          const resp = await fetch('/api/recon', {
+            method:'POST', headers:{'content-type':'application/json'},
+            body: JSON.stringify({ type:'exposure', target:'self' })
+          });
+          showProgress(90);
+          const d = await resp.json();
+          if(d.error) { tl('['+ts()+'] ERROR: '+d.error,'te'); return; }
+          tl('['+ts()+'] YOUR PUBLIC IP: '+d.your_ip,'tb');
+          if(d.geo) tl('  Location: '+d.geo.city+', '+d.geo.country+' '+d.geo.flag,'tb');
+          if(d.geo) tl('  ISP: '+d.geo.isp+' | ASN: '+(d.geo.asn?'AS'+d.geo.asn:'?'),'tb');
+          if(d.abuse) tl('  Abuse Score: '+d.abuse.score+'% — '+d.abuse.risk, d.abuse.score>20?'te':'ts');
+          if(d.is_vpn_proxy) tl('  ⚠ VPN/PROXY/HOSTING DETECTED','tw');
+          if(d.abuse?.is_tor) tl('  ⚠ TOR EXIT NODE','te');
+          showProgress(100);
+          document.getElementById('results-area').innerHTML = renderExposure(d);
+          addHistory('MY IP: '+d.your_ip, 'EXPOSURE');
+        }
+
+        function renderComparisonResults(d) {
+          const sh = d.shodan || {};
+          const ce = d.censys || {};
+          const hasS = !sh.error;
+          const hasC = !ce.error;
+
+          const portCompare = () => {
+            const sPorts = new Set(sh.ports || []);
+            const cPorts = new Set(ce.ports || []);
+            const allPorts = [...new Set([...sPorts, ...cPorts])].sort((a,b)=>a-b);
+            if (!allPorts.length) return '<div class="no-data">No ports found</div>';
+            return allPorts.map(p => {
+              const inS = sPorts.has(p), inC = cPorts.has(p);
+              const ss = sh.services?.find(s=>s.port===p);
+              const cs = ce.services?.find(s=>s.port===p);
+              const svc = ss?.product || cs?.product || guessService(p);
+              const ver = ss?.version || cs?.version || '';
+              const tls = cs?.tls ? ' 🔒' : '';
+              return `<div class="port-row">
+                <span class="p-num">${p}</span>
+                <span class="p-svc">${svc} ${ver}${tls}</span>
+                <span style="margin-left:auto;display:flex;gap:6px">
+                  <span style="padding:1px 6px;border-radius:2px;font-size:9px;background:${inS?'#0a2a0a':'#1a0000'};color:${inS?'var(--g)':'#5a1a1a'};border:1px solid ${inS?'var(--g3)':'#3a1010'}">SHODAN</span>
+                  <span style="padding:1px 6px;border-radius:2px;font-size:9px;background:${inC?'#001a2a':'#1a0000'};color:${inC?'var(--b)':'#1a3a5a'};border:1px solid ${inC?'#005a8a':'#1a3a5a'}">CENSYS</span>
+                </span>
+              </div>`;
+            }).join('');
+          };
+
+          document.getElementById('results-area').innerHTML = `
+            <div class="result-card" style="margin-bottom:10px">
+              <div class="rc-title">🎯 TARGET INTELLIGENCE — ${d.ip}${d.hostname?' ('+d.hostname+')':''}</div>
+              <div class="results-grid">
+                <div style="border-right:1px solid var(--gdim);padding-right:12px">
+                  <div style="font-size:9px;letter-spacing:2px;color:var(--g);margin-bottom:8px">⚡ SHODAN — ${sh.tier||'Free Search API'}</div>
+                  ${hasS ? `<div class="rs-grid">
+                    <div class="rs-key">ORG</div><div class="rs-val">${sh.org||'—'}</div>
+                    <div class="rs-key">LOCATION</div><div class="rs-val">${sh.city||'?'}, ${sh.country||'?'}</div>
+                    <div class="rs-key">OS</div><div class="rs-val">${sh.os||'not detected'}</div>
+                    <div class="rs-key">OPEN PORTS</div><div class="rs-val" style="color:var(--y)">${sh.ports?.length||0}</div>
+                    <div class="rs-key">CVEs</div><div class="rs-val" style="color:${sh.vulns?.length?'var(--r)':'var(--g)'}">${sh.vulns?.length||0}</div>
+                    <div class="rs-key">INDEXED</div><div class="rs-val">${sh.total_indexed||'?'} results</div>
+                  </div>
+                  <div style="margin-top:8px">
+                    ${(sh.strengths||[]).map(s=>`<div style="font-size:10px;color:var(--g3)">✓ ${s}</div>`).join('')}
+                    ${(sh.limitations||[]).map(s=>`<div style="font-size:10px;color:var(--y)">⚠ ${s}</div>`).join('')}
+                  </div>` : `<div style="color:var(--r);font-size:11px">✗ ${sh.error}</div>${sh.error?.includes('SHODAN_API_KEY')?'<div style="color:var(--y);font-size:10px;margin-top:6px">→ account.shodan.io → My Account → API Key</div>':''}`}
+                </div>
+                <div>
+                  <div style="font-size:9px;letter-spacing:2px;color:var(--b);margin-bottom:8px">🔵 CENSYS — ${ce.tier||'Free 250/month'}</div>
+                  ${hasC ? `<div class="rs-grid">
+                    <div class="rs-key">ORG</div><div class="rs-val">${ce.org||'—'}</div>
+                    <div class="rs-key">ASN</div><div class="rs-val">${ce.asn||'—'}</div>
+                    <div class="rs-key">COUNTRY</div><div class="rs-val">${ce.country||'—'}</div>
+                    <div class="rs-key">BGP PREFIX</div><div class="rs-val">${ce.bgp_prefix||'—'}</div>
+                    <div class="rs-key">OPEN PORTS</div><div class="rs-val" style="color:var(--b)">${ce.ports?.length||0}</div>
+                    <div class="rs-key">LABELS</div><div class="rs-val" style="font-size:10px">${(ce.labels||[]).join(', ')||'none'}</div>
+                  </div>
+                  <div style="margin-top:8px">
+                    ${(ce.strengths||[]).map(s=>`<div style="font-size:10px;color:var(--g3)">✓ ${s}</div>`).join('')}
+                    ${(ce.limitations||[]).map(s=>`<div style="font-size:10px;color:var(--y)">⚠ ${s}</div>`).join('')}
+                  </div>` : `<div style="color:var(--r);font-size:11px">✗ ${ce.error}</div>${ce.error?.includes('CENSYS_API_ID')?'<div style="color:var(--y);font-size:10px;margin-top:6px">→ search.censys.io/account → API Key &amp; Secret</div>':''}`}
+                </div>
+              </div>
+            </div>
+            <div class="result-card">
+              <div class="rc-title">PORT COMPARISON — which engine found what</div>
+              ${portCompare()}
+            </div>
+            ${(hasS && sh.vulns?.length) ? `<div class="result-card" style="border-color:var(--r);margin-top:10px">
+              <div class="rc-title" style="color:var(--r)">⚠ CVEs (Shodan) — ${sh.vulns.length} found</div>
+              ${sh.vulns.map(c=>`<span class="cve-pill" onclick="window.open('https://nvd.nist.gov/vuln/detail/${c}','_blank')">${c}</span>`).join('')}
+            </div>` : ''}
+            ${(hasC && ce.services?.filter(s=>s.tls).length) ? `<div class="result-card" style="border-color:var(--b);margin-top:10px">
+              <div class="rc-title" style="color:var(--b)">🔒 TLS CERTIFICATES (Censys only)</div>
+              ${ce.services.filter(s=>s.tls).map(s=>`<div class="port-row">
+                <span class="p-num">${s.port}</span>
+                <span style="color:var(--b);font-size:11px">Issuer: ${s.tls.issuer||'?'} | Subject: ${s.tls.subject||'?'}</span>
+              </div>`).join('')}
+            </div>` : ''}
+          `;
+        }
+
+
+        // ── SSL RENDER ──
+        function renderSSL(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">🔒 SSL/TLS</div><div style="color:var(--r)">${d.error}</div></div>`;
+          const sc = d.status==='VALID'?'var(--g)':d.status==='EXPIRING SOON'?'var(--y)':'var(--r)';
+          return `<div class="results-grid">
+            <div class="result-card" style="border-color:${sc}">
+              <div class="rc-title">🔒 SSL CERTIFICATE</div>
+              <div style="text-align:center;padding:12px 0">
+                <div style="font-size:20px;font-family:'Orbitron',sans-serif;color:${sc};font-weight:900">${d.status}</div>
+                <div style="font-size:9px;color:var(--g3);margin-top:4px">${d.total_certs} TOTAL CERTIFICATES</div>
+              </div>
+              ${d.latest ? `<div class="rs-grid">
+                <div class="rs-key">ISSUER</div><div class="rs-val" style="font-size:10px">${d.latest.issuer?.match(/O=([^,]+)/)?.[1]||d.latest.issuer||'?'}</div>
+                <div class="rs-key">EXPIRES</div><div class="rs-val" style="color:${sc}">${d.latest.not_after?.slice(0,10)} (${d.latest.days_left} days)</div>
+                <div class="rs-key">COMMON NAME</div><div class="rs-val">${d.latest.common_name||'?'}</div>
+              </div>` : ''}
+            </div>
+            ${d.subdomains_discovered?.length ? `<div class="result-card">
+              <div class="rc-title">🕸 SUBDOMAINS VIA CERT TRANSPARENCY <span style="color:var(--y)">${d.subdomains_discovered.length}</span></div>
+              <div style="max-height:300px;overflow-y:auto">
+                ${d.subdomains_discovered.map(s=>`<div class="subdomain-row"><span style="color:var(--g)">${s}</span></div>`).join('')}
+              </div>
+            </div>` : ''}
+          </div>
+          ${d.cert_history?.length ? `<div class="result-card" style="margin-top:10px">
+            <div class="rc-title">CERTIFICATE HISTORY</div>
+            ${d.cert_history.map(c=>`<div class="port-row"><span style="color:var(--g3);font-size:10px">${c.not_after?.slice(0,10)}</span><span style="color:var(--g);font-size:10px;margin-left:12px">${c.issuer?.match(/O=([^,]+)/)?.[1]||c.issuer||'?'}</span><span style="color:var(--g3);font-size:10px;margin-left:12px">${c.common_name||''}</span></div>`).join('')}
+          </div>` : ''}`;
+        }
+
+        // ── EMAIL SECURITY RENDER ──
+        function renderEmail(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">📧 EMAIL SECURITY</div><div style="color:var(--r)">${d.error}</div></div>`;
+          const rc = d.spoofing_risk==='CRITICAL'?'var(--r)':d.spoofing_risk==='HIGH'?'#ff6600':d.spoofing_risk==='MEDIUM'?'var(--y)':'var(--g)';
+          return `<div class="results-grid">
+            <div class="result-card" style="border-color:${rc}">
+              <div class="rc-title">📧 EMAIL SECURITY — ${d.target}</div>
+              <div style="text-align:center;padding:12px 0">
+                <div style="font-size:20px;font-family:'Orbitron',sans-serif;color:${rc};font-weight:900">${d.spoofing_risk}</div>
+                <div style="font-size:9px;color:var(--g3);margin-top:4px">SPOOFING RISK</div>
+                <div style="font-size:11px;margin-top:8px;color:${d.summary?.can_be_spoofed?'var(--r)':'var(--g)'}">${d.summary?.can_be_spoofed?'⚠ DOMAIN CAN BE SPOOFED':'✓ DOMAIN IS PROTECTED'}</div>
+              </div>
+              <div class="rs-grid">
+                <div class="rs-key">SPF</div><div class="rs-val" style="color:${d.spf?'var(--g)':'var(--r)'}">${d.spf?'✓ '+d.spf.all_policy:'✗ NOT SET'}</div>
+                <div class="rs-key">DMARC</div><div class="rs-val" style="color:${d.dmarc?'var(--g)':'var(--r)'}">${d.dmarc?'✓ Policy: '+d.dmarc.policy:'✗ NOT SET'}</div>
+                <div class="rs-key">MX SERVERS</div><div class="rs-val">${d.mx_servers?.length||0} found</div>
+              </div>
+            </div>
+            <div class="result-card">
+              <div class="rc-title">RECORD DETAILS</div>
+              ${d.spf?`<div style="margin-bottom:10px"><div style="font-size:10px;color:var(--y);margin-bottom:4px">SPF RECORD</div><div style="font-size:10px;color:var(--g);word-break:break-all;background:#020802;padding:8px;border-radius:3px">${d.spf.record}</div>${d.spf.includes?.length?`<div style="font-size:9px;color:var(--g3);margin-top:4px">Includes: ${d.spf.includes.join(', ')}</div>`:''}</div>`:'<div style="color:var(--r);font-size:11px;margin-bottom:10px">✗ No SPF record — anyone can send email as @'+d.target+'</div>'}
+              ${d.dmarc?`<div style="margin-bottom:10px"><div style="font-size:10px;color:var(--y);margin-bottom:4px">DMARC RECORD</div><div style="font-size:10px;color:var(--g);word-break:break-all;background:#020802;padding:8px;border-radius:3px">${d.dmarc.record}</div><div style="font-size:9px;color:var(--g3);margin-top:4px">Policy: ${d.dmarc.policy} | Coverage: ${d.dmarc.percentage}</div></div>`:'<div style="color:var(--r);font-size:11px">✗ No DMARC record — phishing emails will not be blocked</div>'}
+              ${d.mx_servers?.length?`<div style="margin-top:8px"><div style="font-size:10px;color:var(--y);margin-bottom:4px">MX SERVERS</div>${d.mx_servers.map(m=>`<div style="font-size:10px;color:var(--g)">${m}</div>`).join('')}</div>`:''}
+            </div>
+          </div>`;
+        }
+
+        // ── BREACH RENDER ──
+        function renderBreach(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">💧 BREACH CHECK</div><div style="color:var(--r)">${d.error}</div></div>`;
+          if(!d.total_breaches) return `<div class="result-card"><div class="rc-title">💧 BREACH CHECK — ${d.target}</div><div style="color:var(--g);font-size:12px;padding:16px;text-align:center">✓ NO BREACHES FOUND for this domain</div></div>`;
+          return `<div class="result-card">
+            <div class="rc-title">💧 BREACHES — ${d.target} <span style="color:var(--r)">${d.total_breaches} found</span></div>
+            <div style="text-align:center;padding:10px 0;margin-bottom:12px;background:#1a0000;border-radius:4px">
+              <div style="font-size:28px;font-family:'Orbitron',sans-serif;color:var(--r);font-weight:900">${d.total_accounts?.toLocaleString()||0}</div>
+              <div style="font-size:9px;color:var(--g3)">TOTAL ACCOUNTS EXPOSED</div>
+            </div>
+            ${(d.breaches||[]).map(b=>`<div style="padding:10px 0;border-bottom:1px solid #0a100a">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="color:var(--r);font-size:12px;font-weight:bold">${b.name}</span>
+                <span style="color:var(--g3);font-size:10px">${b.breach_date}</span>
+              </div>
+              <div style="font-size:10px;color:var(--g3);margin-bottom:4px">${(b.pwn_count||0).toLocaleString()} accounts • ${b.is_verified?'✓ Verified':'Unverified'}</div>
+              <div style="font-size:10px;color:#1a6a1a">${b.description||''}</div>
+              ${b.data_classes?.length?`<div style="margin-top:4px">${b.data_classes.map(c=>`<span class="tag-pill">${c}</span>`).join('')}</div>`:''}
+            </div>`).join('')}
+          </div>`;
+        }
+
+        // ── ASN RENDER ──
+        function renderASN(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">🌐 ASN INTEL</div><div style="color:var(--r)">${d.error}</div></div>`;
+          return `<div class="results-grid">
+            <div class="result-card">
+              <div class="rc-title">🌐 ASN INTELLIGENCE</div>
+              <div class="rs-grid">
+                <div class="rs-key">ASN</div><div class="rs-val" style="color:#00bfff;font-size:14px">AS${d.asn||'?'}</div>
+                <div class="rs-key">NAME</div><div class="rs-val">${d.name||'Unknown'}</div>
+                <div class="rs-key">DESCRIPTION</div><div class="rs-val" style="font-size:10px">${d.description||'—'}</div>
+                <div class="rs-key">COUNTRY</div><div class="rs-val">${d.country||'—'}</div>
+                <div class="rs-key">RIR</div><div class="rs-val">${d.rir||'—'}</div>
+                <div class="rs-key">WEBSITE</div><div class="rs-val" style="font-size:10px">${d.website||'—'}</div>
+              </div>
+              ${d.abuse_contacts?.length?`<div style="margin-top:10px"><div style="font-size:9px;color:var(--g3);margin-bottom:4px">ABUSE CONTACTS</div>${d.abuse_contacts.map(c=>`<div style="font-size:10px;color:var(--y)">${c}</div>`).join('')}</div>`:''}
+            </div>
+            ${d.owned_prefixes?.length?`<div class="result-card">
+              <div class="rc-title">IP RANGES OWNED <span style="color:var(--y)">${d.prefix_count}</span></div>
+              <div style="max-height:300px;overflow-y:auto">
+                ${d.owned_prefixes.map(p=>`<div class="port-row"><span style="color:#00bfff;font-size:10px">${p.prefix}</span><span style="color:var(--g3);font-size:9px">${p.name||p.description||''}</span></div>`).join('')}
+              </div>
+            </div>`:''}
+          </div>`;
+        }
+
+        // ── WEB ARCHIVE RENDER ──
+        function renderArchive(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">📜 WEB ARCHIVE</div><div style="color:var(--r)">${d.error}</div></div>`;
+          const fmt = ts => ts?ts.slice(0,4)+'-'+ts.slice(4,6)+'-'+ts.slice(6,8)+' '+ts.slice(8,10)+':'+ts.slice(10,12):'?';
+          return `<div class="result-card">
+            <div class="rc-title">📜 WAYBACK MACHINE — ${d.target}</div>
+            <div class="results-grid" style="margin-bottom:12px">
+              <div style="text-align:center;padding:10px;background:#020802;border-radius:4px">
+                <div style="font-size:28px;font-family:'Orbitron',sans-serif;color:var(--g);font-weight:900">${d.total_snapshots}</div>
+                <div style="font-size:9px;color:var(--g3)">TOTAL SNAPSHOTS</div>
+              </div>
+              <div class="rs-grid">
+                <div class="rs-key">FIRST SEEN</div><div class="rs-val">${d.first_seen?fmt(d.first_seen):'Unknown'}</div>
+                <div class="rs-key">LATEST</div><div class="rs-val">${d.latest_snapshot?fmt(d.latest_snapshot.timestamp):'None'}</div>
+                <div class="rs-key">STATUS</div><div class="rs-val" style="color:${d.has_archive?'var(--g)':'var(--r)'}">${d.has_archive?'✓ ARCHIVED':'✗ NOT ARCHIVED'}</div>
+              </div>
+            </div>
+            ${d.latest_snapshot?`<a href="${d.latest_snapshot.url}" target="_blank" style="display:block;text-align:center;color:var(--b);font-size:11px;margin-bottom:12px;text-decoration:none">🔗 View Latest Snapshot →</a>`:''}
+            ${d.snapshots?.length?`<div><div style="font-size:9px;color:var(--g3);letter-spacing:1px;margin-bottom:6px">RECENT SNAPSHOTS</div>
+              ${d.snapshots.map(s=>`<div class="port-row"><span style="color:var(--g3);font-size:9px">${fmt(s.timestamp)}</span><span style="color:var(--g);font-size:9px;margin-left:8px">${s.status}</span><span style="color:#0d4a0d;font-size:9px;margin-left:8px">${s.url?.slice(0,50)}</span></div>`).join('')}
+            </div>`:''}
+            <a href="${d.wayback_url}" target="_blank" style="display:block;text-align:center;color:var(--b);font-size:10px;margin-top:12px;text-decoration:none">📚 View Full History on Wayback Machine →</a>
+          </div>`;
+        }
+
+        // ── CVE RENDER ──
+        function renderCVE(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">🐛 CVE SEARCH</div><div style="color:var(--r)">${d.error}</div></div>`;
+          if(!d.results?.length) return `<div class="result-card"><div class="rc-title">🐛 CVE SEARCH</div><div class="no-data">No CVEs found for "${d.target}"</div></div>`;
+          const sev = s => ({CRITICAL:'var(--r)',HIGH:'#ff6600',MEDIUM:'var(--y)',LOW:'var(--g)',NONE:'var(--g3)'}[s]||'var(--g3)');
+          return `<div class="result-card">
+            <div class="rc-title">🐛 CVE SEARCH — "${d.target}" <span style="color:var(--y)">${d.total} results</span></div>
+            ${d.results.map(c=>`<div style="padding:12px 0;border-bottom:1px solid #0a100a">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="color:var(--r);font-family:'Orbitron',sans-serif;font-size:12px">${c.id}</span>
+                <div>
+                  <span style="padding:2px 8px;border-radius:2px;font-size:10px;background:${sev(c.severity)}22;border:1px solid ${sev(c.severity)};color:${sev(c.severity)}">${c.severity||'?'} ${c.score||'?'}</span>
+                </div>
+              </div>
+              <div style="font-size:11px;color:#1a7a1a;margin-bottom:6px;line-height:1.6">${c.description}</div>
+              <div style="display:flex;gap:12px">
+                <span style="font-size:9px;color:var(--g3)">Published: ${c.published?.slice(0,10)||'?'}</span>
+                ${c.cwe?`<span style="font-size:9px;color:var(--g3)">${c.cwe}</span>`:''}
+              </div>
+              ${c.references?.filter(r=>r.startsWith('http')).length?`<div style="margin-top:4px">${c.references.filter(r=>r.startsWith('http')).map(r=>`<a href="${r}" target="_blank" style="display:block;font-size:9px;color:var(--b);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r}</a>`).join('')}</div>`:''}
+            </div>`).join('')}
+          </div>`;
+        }
+
+        // ── TECH FINGERPRINT RENDER ──
+        function renderTech(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">🔬 TECH SCAN</div><div style="color:var(--r)">${d.error}</div></div>`;
+          if(!d.count) return `<div class="result-card"><div class="rc-title">🔬 TECH SCAN</div><div class="no-data">No technologies detected</div></div>`;
+          const catColor = {'CMS':'var(--y)','Server':'var(--g)','CDN':'#00bfff','JS Framework':'var(--p)','CSS Framework':'#ff69b4','Analytics':'#ffa500','E-Commerce':'#ffd700','Security':'var(--r)','Language':'var(--g3)','Framework':'var(--g)'}
+          const byCategory = {};
+          (d.technologies||[]).forEach(t => { if(!byCategory[t.cat]) byCategory[t.cat]=[]; byCategory[t.cat].push(t); });
+          return `<div class="result-card">
+            <div class="rc-title">🔬 TECHNOLOGY FINGERPRINT — ${d.target} <span style="color:var(--y)">${d.count} detected</span></div>
+            ${Object.entries(byCategory).map(([cat,techs])=>`<div style="margin-bottom:12px">
+              <div style="font-size:9px;letter-spacing:2px;color:${catColor[cat]||'var(--g3)'};margin-bottom:6px">${cat.toUpperCase()}</div>
+              ${techs.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+                <span style="color:${catColor[cat]||'var(--g)'};font-size:12px">▸</span>
+                <span style="color:var(--g);font-size:12px">${t.name}</span>
+                ${t.ver?`<span style="color:var(--g3);font-size:10px">v${t.ver}</span>`:''}
+              </div>`).join('')}
+            </div>`).join('')}
+          </div>`;
+        }
+
+        // ── MY EXPOSURE RENDER ──
+        function renderExposure(d) {
+          if(d.error) return `<div class="result-card"><div class="rc-title">👁 MY EXPOSURE</div><div style="color:var(--r)">${d.error}</div></div>`;
+          const s = d.summary || {};
+          const rc = s.risk==='CRITICAL'?'var(--r)':s.risk==='HIGH'?'#ff6600':s.risk==='MEDIUM'?'var(--y)':'var(--g)';
+          return `<div class="result-card" style="border-color:${rc}">
+            <div class="rc-title">👁 YOUR PUBLIC IP EXPOSURE</div>
+            <div style="text-align:center;padding:14px 0;background:${s.abuse_score>=50?'#150000':s.abuse_score>=20?'#100a00':'#001500'};border-radius:4px;margin-bottom:14px">
+              <div style="font-size:13px;color:var(--g3);letter-spacing:2px;margin-bottom:4px">YOUR PUBLIC IP</div>
+              <div style="font-size:28px;font-family:'Orbitron',sans-serif;color:#00bfff;font-weight:900">${d.your_ip}</div>
+              <div style="font-size:16px;color:${rc};font-family:'Orbitron',sans-serif;margin-top:8px">${s.risk}</div>
+              ${d.is_vpn_proxy?'<div style="color:var(--y);font-size:11px;margin-top:4px">⚠ VPN/PROXY/HOSTING DETECTED</div>':''}
+              ${s.is_tor?'<div style="color:var(--r);font-size:11px;margin-top:4px">⚠ TOR EXIT NODE</div>':''}
+            </div>
+            <div class="results-grid">
+              <div>
+                <div style="font-size:9px;color:var(--g3);letter-spacing:1px;margin-bottom:8px">LOCATION & NETWORK</div>
+                <div class="rs-grid">
+                  <div class="rs-key">COUNTRY</div><div class="rs-val">${d.geo?.flag||''} ${d.geo?.country||'?'}</div>
+                  <div class="rs-key">CITY</div><div class="rs-val">${d.geo?.city||'?'}</div>
+                  <div class="rs-key">ISP</div><div class="rs-val">${s.isp||'?'}</div>
+                  <div class="rs-key">ASN</div><div class="rs-val">${d.geo?.asn?'AS'+d.geo.asn:'?'}</div>
+                  <div class="rs-key">USAGE TYPE</div><div class="rs-val" style="font-size:10px">${d.usage_type||'?'}</div>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:var(--g3);letter-spacing:1px;margin-bottom:8px">THREAT INTELLIGENCE</div>
+                <div class="rs-grid">
+                  <div class="rs-key">ABUSE SCORE</div><div class="rs-val" style="color:${rc}">${s.abuse_score??'?'}%</div>
+                  <div class="rs-key">REPORTS</div><div class="rs-val" style="color:${d.abuse?.total_reports>0?'var(--r)':'var(--g)'}">${d.abuse?.total_reports??'?'}</div>
+                  <div class="rs-key">TOR EXIT</div><div class="rs-val" style="color:${s.is_tor?'var(--r)':'var(--g)'}">${s.is_tor?'YES':'NO'}</div>
+                  <div class="rs-key">VPN/PROXY</div><div class="rs-val" style="color:${d.is_vpn_proxy?'var(--y)':'var(--g)'}">${d.is_vpn_proxy?'DETECTED':'CLEAN'}</div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px;padding:10px;background:#010801;border-radius:4px;font-size:10px;color:var(--g3);line-height:1.8">
+              <div style="color:var(--g);margin-bottom:4px">WHAT HACKERS SEE ABOUT YOU:</div>
+              ${s.risk==='CLEAN'?'✓ Your IP appears clean with no abuse reports. No open ports detected from public scan.':'⚠ Your IP has been flagged. Consider using a VPN or rotating your IP if you are a target.'}
+            </div>
+          </div>`;
+        }
+
+        // Auto-fill from URL param (used by lab SCAN button)
+        const _t = new URLSearchParams(window.location.search).get('target');
+        if (_t) { document.getElementById('target').value = _t; }
+        initMatrixRain('matrix', 0.04);
+        init();
+    </script>
+</body>
+</html>

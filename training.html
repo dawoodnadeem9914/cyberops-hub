@@ -1,0 +1,434 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — Security Training</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item active"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>SECURE SESSION</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">// SECURITY AWARENESS TRAINING</span>
+      <div class="topbar-right">
+        <span class="tb-item">PROGRESS <span id="tb-prog">0/7</span></span>
+        <span class="tb-item">SCORE <span id="tb-score" style="color:#c5a522">0%</span></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="g4 mt">
+        <div class="stat-box"><div class="stat-n" id="s-done">0</div><div class="stat-l">COMPLETED</div></div>
+        <div class="stat-box"><div class="stat-n" id="s-total">7</div><div class="stat-l">TOTAL MODULES</div></div>
+        <div class="stat-box"><div class="stat-n" id="s-score" style="color:#c5a522">0%</div><div class="stat-l">AVG SCORE</div></div>
+        <div class="stat-box"><div class="stat-n" id="s-badges">0</div><div class="stat-l">BADGES EARNED</div></div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="card mt">
+        <div class="card-title">// OVERALL PROGRESS</div>
+        <div class="bar-track" style="height:10px;border-radius:4px">
+          <div class="bar-fill" id="overall-bar" style="width:0%;height:100%;border-radius:4px;transition:width 1s"></div>
+        </div>
+        <div style="text-align:right;color:#1a6a1a;font-size:9px;margin-top:4px"><span id="prog-txt">0% COMPLETE</span></div>
+      </div>
+
+      <!-- Module list -->
+      <div class="card mt">
+        <div class="card-title">// TRAINING MODULES — PROGRESS SAVED TO SUPABASE</div>
+        <div id="module-list"></div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <span class="bb">MODULES: <span>7 AVAILABLE</span></span>
+      <span class="bb">PROGRESS: <span>CLOUD SAVED</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- Module detail modal -->
+<div class="modal-overlay" id="module-modal">
+  <div class="modal-box" style="max-width:500px">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="m-title">Module Title</div>
+    <div class="modal-sub" id="m-desc">Module description.</div>
+    <div id="m-content" style="margin-bottom:16px;font-size:11px;color:#22c522;line-height:1.8;background:#0d1a0d;padding:12px;border-radius:4px;border:1px solid #1a3a1a"></div>
+    <div id="quiz-area">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:9px;letter-spacing:2px;color:var(--green-dim)" id="q-progress">QUESTION 1 OF 5</span>
+        <span style="font-size:9px;letter-spacing:1px;color:var(--green-dim)">NEED 3/5 TO PASS</span>
+      </div>
+      <div style="height:3px;background:#0d1a0d;border-radius:2px;margin-bottom:14px;overflow:hidden">
+        <div id="q-progress-bar" style="height:100%;background:var(--green);border-radius:2px;transition:width .3s;width:20%"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="q-text">QUIZ QUESTION</label>
+        <div id="q-options" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+      <div id="quiz-alert" class="alert"></div>
+      <button class="btn btn-primary btn-full" id="quiz-btn" onclick="submitQuiz()">[ SUBMIT ANSWER ]</button>
+    </div>
+    <div id="completed-banner" style="display:none;padding:10px;background:#051005;border:1px solid #22c522;border-radius:4px;color:#22c522;font-size:11px;text-align:center">
+      MODULE COMPLETE — BADGE EARNED
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+  const MODULE_QUESTIONS = {
+    phishing: [
+      { q:'Which is the most reliable way to verify a suspicious email?', opts:['Check the sender display name','Hover to inspect the actual link URL','Look at email formatting and logo','Trust it if addressed to you personally'], a:1 },
+      { q:'An email says your account will be suspended unless you click now. You should:', opts:['Click quickly to keep access','Navigate directly to the site in a new tab','Reply asking if it is real','Forward to a friend to check'], a:1 },
+      { q:'Which domain is a phishing attempt?', opts:['paypal.com','paypa1.com','paypal.co.uk','payments.paypal.com'], a:1 },
+      { q:'What is spear phishing?', opts:['Mass phishing sent to thousands','Targeted phishing using personal info about the victim','Phishing via text message','Voice call phishing'], a:1 },
+      { q:'A colleague sends an unexpected file saying "check this." You should:', opts:['Open it — you trust them','Call them separately to confirm they sent it','Delete immediately','Forward to IT'], a:1 },
+    ],
+    passwords: [
+      { q:'The single most effective password security measure is:', opts:['Using symbols like @#$','Making passwords exactly 12 chars','Using a unique password for every account','Changing passwords every 30 days'], a:2 },
+      { q:'Which password is strongest?', opts:['P@ssw0rd!','correct-horse-battery-staple','Abc123!','qwerty123'], a:1 },
+      { q:'A password manager:', opts:['Stores passwords in plain text','Generates and encrypts unique passwords per site','Shares passwords across devices without encryption','Only remembers your master password'], a:1 },
+      { q:'Two-factor authentication protects you because:', opts:['It makes passwords longer','An attacker needs both your password AND a second factor','It encrypts your email','It blocks phishing'], a:1 },
+      { q:'Best approach for a strong passphrase:', opts:['4 random unrelated words joined together','Your pet name + birth year','Keyboard pattern like qwerty12345','Company name + !'], a:0 },
+    ],
+    social: [
+      { q:'IT support calls asking for your password to fix your account. You:', opts:['Give it — they are IT','Ask for employee ID then give it','Refuse — IT never needs your password','Email it instead'], a:2 },
+      { q:'Pretexting in social engineering means:', opts:['Sending fake emails','Creating a fabricated scenario to manipulate someone','Hacking a website directly','Installing malware via USB'], a:1 },
+      { q:'Someone follows closely behind you through a secure door. This is:', opts:['Phishing','Vishing','Tailgating','Baiting'], a:2 },
+      { q:'You find a USB drive in the car park. You should:', opts:['Plug it in to find the owner','Take it home to check safely','Hand it to your security team unopened','Format and keep it'], a:2 },
+      { q:'Social engineers exploit most:', opts:['Greed','Authority and urgency','Curiosity about technology','Fear of missing deadlines'], a:1 },
+    ],
+    network: [
+      { q:'At a coffee shop needing to access your bank, you should:', opts:['Use public WiFi — HTTPS protects you','Use mobile data or a VPN','Use incognito mode','Ask the barista for the WiFi password'], a:1 },
+      { q:'A firewall primarily:', opts:['Encrypts your hard drive','Filters network traffic based on rules','Detects viruses in files','Speeds up your connection'], a:1 },
+      { q:'A man-in-the-middle attack is:', opts:['A phishing email','An attacker secretly intercepting communication between two parties','A DDoS attack','Malware that steals files'], a:1 },
+      { q:'Which protocol encrypts web traffic between browser and server?', opts:['HTTP','FTP','HTTPS/TLS','SMTP'], a:2 },
+      { q:'A VPN primarily protects you by:', opts:['Blocking all malware','Encrypting traffic and masking your IP','Speeding up downloads','Preventing phishing'], a:1 },
+    ],
+    malware: [
+      { q:'Which malware spreads WITHOUT user interaction across a network?', opts:['Trojan horse','Ransomware','Worm','Spyware'], a:2 },
+      { q:'Ransomware:', opts:['Spies on your keystrokes','Encrypts your files and demands payment','Steals passwords','Shows unwanted ads'], a:1 },
+      { q:'A Trojan horse differs from a virus because:', opts:['Trojans are faster','Trojans disguise themselves as legitimate software','Trojans only affect mobile','Trojans cannot be detected'], a:1 },
+      { q:'The best defense against ransomware is:', opts:['Daily antivirus scans','Regular offline backups','Paying ransom quickly','Disconnecting from internet permanently'], a:1 },
+      { q:'A keylogger:', opts:['Logs all network connections','Records every keystroke you type','Encrypts keyboard input','Blocks malicious sites'], a:1 },
+    ],
+    incident: [
+      { q:'Active intrusion detected on a machine. FIRST action:', opts:['Run antivirus','Isolate it from the network while keeping it powered on','Reboot the server','Email your manager'], a:1 },
+      { q:'After isolating a compromised machine, next priority is:', opts:['Reinstall the OS','Preserve evidence — memory dumps and logs','Delete suspicious files','Tell all staff'], a:1 },
+      { q:'During a confirmed breach, notify FIRST:', opts:['The press','Your security/incident response lead','All employees by email','Law enforcement immediately'], a:1 },
+      { q:'A post-incident review exists to:', opts:['Blame the employee who clicked','Understand what happened and prevent recurrence','Calculate insurance damages','Shut down systems permanently'], a:1 },
+      { q:'Most useful log source for tracing a network intrusion:', opts:['Application error logs','Firewall and network flow logs','Browser history','Email server logs'], a:1 },
+    ],
+    osint: [
+      { q:'OSINT stands for:', opts:['Online Security Intelligence Network Tool','Open Source Intelligence','Offensive Security Intrusion Test','Operational System Integration'], a:1 },
+      { q:'Biggest OSINT risk for developers:', opts:['Having a LinkedIn profile','Committing API keys to a public GitHub repo','Using real name on Stack Overflow','Having a personal website'], a:1 },
+      { q:'Google Dorking is:', opts:['A phishing attack','Advanced search operators to find exposed sensitive data','Hacking Google servers','A social engineering technique'], a:1 },
+      { q:'Best tool to find services exposed on a public IP:', opts:['Google Maps','Shodan','LinkedIn','WHOIS alone'], a:1 },
+      { q:'Highest-impact privacy action:', opts:['Using a different browser','Auditing and removing old accounts to minimise digital footprint','Posting less on Instagram','Using VPN only at work'], a:1 },
+    ],
+  };
+
+  function getQuestionsForModule(id) {
+    const map = { phishing:'phishing', passwords:'passwords', social:'social',
+      network:'network', malware:'malware', incident:'incident', osint:'osint' };
+    return MODULE_QUESTIONS[map[id]] || MODULE_QUESTIONS.phishing;
+  }
+
+  const MODULES = [
+    {
+      id: 'phishing', title: 'Phishing Recognition', icon: '🎣',
+      desc: 'Learn to identify phishing emails, fake login pages, and social engineering attacks.',
+      content: `KEY SIGNS OF PHISHING:\n• Urgent language ("Your account will be closed!")\n• Suspicious sender domain (paypa1.com vs paypal.com)\n• Links that don't match the displayed text\n• Requests for credentials via email\n• Poor grammar and spelling\n• Unexpected attachments\n\nALWAYS verify the sender domain character by character. Attackers use lookalike domains.`,
+      question: 'Which of these is the most reliable way to verify a suspicious email?',
+      options: ['A) Check the displayed name', 'B) Look at the actual email domain character by character', 'C) Click the link and check the page', 'D) Trust it if it looks professional'],
+      answer: 1, badge: 'PHISH BUSTER'
+    },
+    {
+      id: 'passwords', title: 'Password Hygiene', icon: '🔐',
+      desc: 'Master password security: creation, management, and multi-factor authentication.',
+      content: `STRONG PASSWORD RULES:\n• Minimum 16 characters\n• Mix uppercase, lowercase, numbers, symbols\n• Never reuse passwords across sites\n• Use a password manager (Bitwarden, 1Password)\n• Enable 2FA/MFA on all critical accounts\n• Never share passwords — not even with IT\n\nPASSWORD ENTROPY: A 16-char random password has ~95 bits of entropy — virtually uncrackable.`,
+      question: 'What is the single most effective password security measure?',
+      options: ['A) Use a complex password with symbols', 'B) Change your password every month', 'C) Use a unique password for every site + a password manager', 'D) Never write it down'],
+      answer: 2, badge: 'LOCK SMITH'
+    },
+    {
+      id: 'social', title: 'Social Engineering', icon: '🎭',
+      desc: 'Understand how attackers manipulate humans — the weakest link in any security chain.',
+      content: `COMMON SOCIAL ENGINEERING ATTACKS:\n• Pretexting: attacker creates a fake scenario\n• Vishing: voice phishing over phone calls\n• Baiting: USB drives left in parking lots\n• Tailgating: following someone through a secure door\n• Quid pro quo: offering help in exchange for credentials\n\nDEFENCE: Verify identity through official channels. Never bypass procedure for convenience.`,
+      question: 'Someone calls claiming to be IT support and needs your password to fix your account. What do you do?',
+      options: ['A) Give it if they know your username', 'B) Refuse — real IT never asks for passwords', 'C) Give temporary access only', 'D) Ask them to email instead'],
+      answer: 1, badge: 'MIND GUARD'
+    },
+    {
+      id: 'network', title: 'Network Security Basics', icon: '🌐',
+      desc: 'WiFi security, VPNs, firewalls, and safe browsing practices.',
+      content: `NETWORK SAFETY RULES:\n• Never use public WiFi without a VPN\n• Verify HTTPS (🔒) before entering credentials\n• Use a firewall — both hardware and software\n• Keep router firmware updated\n• Disable WPS on your router\n• Use WPA3 encryption (or WPA2 minimum)\n• Segment your network: IoT devices on separate VLAN\n\nHTTPS only encrypts transit — the server can still see your data.`,
+      question: 'You are at a coffee shop and need to access your bank account. What should you do?',
+      options: ['A) Just use the public WiFi — HTTPS protects you', 'B) Use your mobile data or a trusted VPN', 'C) Only if it is a well-known coffee shop', 'D) Ask the barista for the WiFi password'],
+      answer: 1, badge: 'NET GUARDIAN'
+    },
+    {
+      id: 'malware', title: 'Malware Analysis Intro', icon: '🦠',
+      desc: 'Understand malware types, infection vectors, and basic static analysis techniques.',
+      content: `MALWARE TYPES:\n• Virus: attaches to files, spreads on execution\n• Worm: self-replicates across networks (no user action needed)\n• Ransomware: encrypts files, demands payment\n• Trojan: disguised as legitimate software\n• Spyware: silently collects data\n• Rootkit: hides presence from OS\n\nINFECTION VECTORS: Email attachments, malicious downloads, USB drives, drive-by downloads, software vulnerabilities.\n\nBASIC STATIC ANALYSIS: strings, file hashes, PE header analysis — before running ANY unknown binary.`,
+      question: 'Which malware type does NOT require user interaction to spread across a network?',
+      options: ['A) Virus', 'B) Trojan', 'C) Worm', 'D) Ransomware'],
+      answer: 2, badge: 'MALWARE HUNTER'
+    },
+    {
+      id: 'incident', title: 'Incident Response', icon: '🚨',
+      desc: 'Learn the IR lifecycle: preparation, detection, containment, eradication, recovery.',
+      content: `INCIDENT RESPONSE PHASES:\n1. PREPARATION — policies, playbooks, tools ready\n2. IDENTIFICATION — detect and confirm the incident\n3. CONTAINMENT — isolate affected systems\n4. ERADICATION — remove malware/attacker access\n5. RECOVERY — restore from clean backups\n6. LESSONS LEARNED — document and improve\n\nGOLDEN RULE: Never turn off a compromised machine immediately — volatile memory contains evidence. Isolate network first, then do forensics.`,
+      question: 'A machine is compromised with an active intrusion. What is the FIRST thing you should do?',
+      options: ['A) Power off the machine immediately', 'B) Install antivirus to clean it', 'C) Isolate it from the network while keeping it running', 'D) Reformat and reinstall the OS'],
+      answer: 2, badge: 'IR OPERATOR'
+    },
+    {
+      id: 'osint', title: 'OSINT & Privacy', icon: '🔍',
+      desc: 'Open-source intelligence: what you expose publicly and how attackers use it against you.',
+      content: `YOUR DIGITAL FOOTPRINT:\n• Social media profiles (LinkedIn, Instagram, Twitter)\n• Email addresses in breach databases (haveibeenpwned.com)\n• Domain registration records (WHOIS)\n• GitHub commit history exposing emails/keys\n• Shodan: your public-facing services\n• Google dorks: cached sensitive files\n\nPRIVACY HYGIENE:\n• Audit your social media privacy settings monthly\n• Remove old accounts you no longer use\n• Never commit API keys or credentials to git\n• Use aliases for non-critical signups`,
+      question: 'Which of these is the BIGGEST OSINT risk for developers?',
+      options: ['A) Having a LinkedIn profile', 'B) Committing API keys or credentials to a public GitHub repo', 'C) Using your real name on Stack Overflow', 'D) Having a personal website'],
+      answer: 1, badge: 'GHOST MODE'
+    }
+  ];
+
+  let currentUser = null;
+  let completedModules = {};
+  let activeModule = null;
+  let selectedOption = null;
+  let quizQuestions = [];
+  let currentQ = 0;
+  let correctCount = 0;
+  const PASS_THRESHOLD = 3; // need 3/5 correct
+
+  initMatrixRain('matrix', 0.08);
+
+  async function init() {
+    currentUser = await requireAuth();
+    if (!currentUser) return;
+    const { data: profile } = await getProfile(currentUser.id);
+    if (profile) document.getElementById('sb-username').textContent = profile.username || profile.email.split('@')[0];
+    await loadProgress();
+    renderModules();
+  }
+
+  async function loadProgress() {
+    const { data } = await getTrainingProgress(currentUser.id);
+    completedModules = {};
+    (data || []).forEach(r => { if (r.completed) completedModules[r.module_name] = r.score; });
+    updateStats();
+  }
+
+  function updateStats() {
+    const done = Object.keys(completedModules).length;
+    const total = MODULES.length;
+    const pct = Math.round((done / total) * 100);
+    const avgScore = done > 0 ? Math.round(Object.values(completedModules).reduce((a,b)=>a+b,0) / done) : 0;
+
+    document.getElementById('s-done').textContent = done;
+    document.getElementById('s-score').textContent = avgScore + '%';
+    document.getElementById('s-badges').textContent = done;
+    document.getElementById('tb-prog').textContent = done + '/' + total;
+    document.getElementById('tb-score').textContent = pct + '%';
+    document.getElementById('overall-bar').style.width = pct + '%';
+    document.getElementById('prog-txt').textContent = pct + '% COMPLETE';
+  }
+
+  function renderModules() {
+    const container = document.getElementById('module-list');
+    container.innerHTML = MODULES.map((m, idx) => {
+      const done = completedModules[m.id] !== undefined;
+      const score = completedModules[m.id] || 0;
+      const locked = idx > 0 && completedModules[MODULES[idx-1].id] === undefined;
+      return `<div class="challenge-item ${done ? 'solved' : ''} ${locked ? 'locked' : ''}" onclick="${locked ? 'alert(\'COMPLETE PREVIOUS MODULE FIRST\')' : 'openModule(\'' + m.id + '\')'}" style="${locked ? 'opacity:0.4;cursor:not-allowed' : ''}">
+        <span style="font-size:16px">${m.icon}</span>
+        <span class="ch-name">${m.title}</span>
+        ${done ? `<span style="color:#22c522;font-size:9px">SCORE: ${score}%</span>` : ''}
+        ${locked ? '<span style="color:#1a5a1a;font-size:9px">LOCKED</span>' : ''}
+        <span class="ch-status" style="color:${done ? '#22c522' : locked ? '#1a3a1a' : '#1a6a1a'}">${done ? '✓ DONE' : locked ? '🔒' : 'START'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function openModule(id) {
+    activeModule = MODULES.find(m => m.id === id);
+    if (!activeModule) return;
+
+    document.getElementById('m-title').textContent = activeModule.icon + ' ' + activeModule.title;
+    document.getElementById('m-desc').textContent = activeModule.desc;
+    document.getElementById('m-content').style.whiteSpace = 'pre-line';
+    document.getElementById('m-content').textContent = activeModule.content;
+
+    const isCompleted = completedModules[id] !== undefined;
+    document.getElementById('quiz-area').style.display = isCompleted ? 'none' : 'block';
+    document.getElementById('completed-banner').style.display = isCompleted ? 'block' : 'none';
+
+    if (isCompleted) {
+      const pct = completedModules[id] || 0;
+      document.getElementById('completed-banner').textContent = `MODULE COMPLETE — BADGE: ${activeModule.badge} (${pct}%)`;
+    } else {
+      // Load multi-question quiz
+      quizQuestions = getQuestionsForModule(id);
+      currentQ = 0;
+      correctCount = 0;
+      selectedOption = null;
+      loadQuestion();
+    }
+
+    document.getElementById('module-modal').classList.add('show');
+  }
+
+  function loadQuestion() {
+    const q = quizQuestions[currentQ];
+    const total = quizQuestions.length;
+    selectedOption = null;
+
+    document.getElementById('q-progress').textContent = `QUESTION ${currentQ + 1} OF ${total}`;
+    document.getElementById('q-progress-bar').style.width = ((currentQ + 1) / total * 100) + '%';
+    document.getElementById('q-text').textContent = q.q;
+
+    document.getElementById('q-options').innerHTML = q.opts.map((opt, i) =>
+      `<div onclick="selectOption(${i})" id="opt-${i}" style="padding:8px 12px;border:1px solid #1a3a1a;border-radius:4px;cursor:pointer;font-size:11px;color:#1a6a1a;transition:all 0.15s">${opt}</div>`
+    ).join('');
+
+    document.getElementById('quiz-btn').textContent = currentQ < total - 1 ? '[ NEXT QUESTION ]' : '[ FINISH QUIZ ]';
+    document.getElementById('quiz-btn').disabled = false;
+    document.getElementById('quiz-alert').classList.remove('show');
+  }
+
+  function selectOption(i) {
+    selectedOption = i;
+    document.querySelectorAll('#q-options > div').forEach((el, idx) => {
+      el.style.borderColor = idx === i ? 'var(--green)' : '#1a3a1a';
+      el.style.color = idx === i ? 'var(--green)' : '#1a6a1a';
+      el.style.background = idx === i ? '#0d2e0d' : 'transparent';
+    });
+  }
+
+  async function submitQuiz() {
+    if (selectedOption === null) { showAlert('quiz-alert', 'SELECT AN ANSWER FIRST', 'error'); return; }
+
+    const q = quizQuestions[currentQ];
+    const correct = selectedOption === q.a;
+    if (correct) {
+      correctCount++;
+      showAlert('quiz-alert', `✓ CORRECT! (${correctCount} correct so far)`, 'success');
+    } else {
+      showAlert('quiz-alert', `✗ INCORRECT — Correct: ${q.opts[q.a]}`, 'error');
+    }
+
+    // Highlight answer
+    document.querySelectorAll('#q-options > div').forEach((el, idx) => {
+      if (idx === q.a) { el.style.borderColor='var(--green)'; el.style.background='#051005'; }
+      else if (idx === selectedOption && !correct) { el.style.borderColor='var(--red)'; el.style.background='#1a0505'; }
+    });
+    document.getElementById('quiz-btn').disabled = true;
+
+    await new Promise(r => setTimeout(r, 1200));
+
+    // Check if more questions
+    if (currentQ < quizQuestions.length - 1) {
+      currentQ++;
+      loadQuestion();
+      return;
+    }
+
+    // Quiz done — evaluate
+    const passed = correctCount >= PASS_THRESHOLD;
+    const score = Math.round((correctCount / quizQuestions.length) * 100);
+
+    if (!passed) {
+      showAlert('quiz-alert', `FAILED: ${correctCount}/${quizQuestions.length} correct. Need ${PASS_THRESHOLD}. Try again!`, 'error');
+      document.getElementById('quiz-btn').textContent = '[ RETAKE QUIZ ]';
+      document.getElementById('quiz-btn').disabled = false;
+      document.getElementById('quiz-btn').onclick = () => {
+        currentQ = 0; correctCount = 0; selectedOption = null; loadQuestion();
+        document.getElementById('quiz-btn').onclick = submitQuiz;
+      };
+      return;
+    }
+
+    showAlert('quiz-alert', `PASSED: ${correctCount}/${quizQuestions.length} correct — BADGE: ${activeModule.badge}!`, 'success');
+    const _score = score;
+
+    if (_score >= 60) {
+      await completeModule(currentUser.id, activeModule.id, _score);
+      completedModules[activeModule.id] = _score;
+      updateStats();
+
+      setTimeout(() => {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('completed-banner').style.display = 'block';
+
+        // Find next module
+        const currentIdx = MODULES.findIndex(m => m.id === activeModule.id);
+        const nextModule = MODULES[currentIdx + 1];
+
+        if (nextModule) {
+          document.getElementById('completed-banner').innerHTML =
+            `MODULE COMPLETE — BADGE EARNED: ${activeModule.badge}<br><span style="font-size:10px;color:#1a8a1a">Next: ${nextModule.title} unlocked →</span>`;
+          renderModules();
+          // Auto-open next module after 2.5s
+          setTimeout(() => {
+            closeModal();
+            setTimeout(() => openModule(nextModule.id), 400);
+          }, 2500);
+        } else {
+          document.getElementById('completed-banner').innerHTML =
+            `🏆 ALL MODULES COMPLETE — MASTER BADGE EARNED`;
+          renderModules();
+        }
+      }, 1500);
+    }
+  }
+
+  function closeModal() { document.getElementById('module-modal').classList.remove('show'); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  init();
+</script>
+</body>
+</html>

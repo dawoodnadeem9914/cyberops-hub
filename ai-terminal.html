@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberOps — GHOST-AI</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="css/cyber.css">
+<style>
+:root{
+  --ai-cyan:#00f0ff;
+  --ai-green:#2dff88;
+  --ai-purple:#b14bff;
+  --ai-pink:#ff2d78;
+}
+.ghost-root{position:relative;height:100vh;overflow:hidden;perspective:1400px;background:radial-gradient(ellipse at 50% 0%, #06140f 0%, #030805 55%, #010301 100%);}
+#neural-canvas{position:absolute;inset:0;z-index:0;pointer-events:none;}
+.grid-floor{position:absolute;bottom:0;left:0;right:0;height:45%;background-image:linear-gradient(rgba(0,240,255,.12) 1px, transparent 1px),linear-gradient(90deg, rgba(0,240,255,.12) 1px, transparent 1px);background-size:44px 44px;transform:rotateX(72deg) translateZ(-40px);transform-origin:bottom;-webkit-mask-image:linear-gradient(to top, #000 0%, transparent 90%);mask-image:linear-gradient(to top, #000 0%, transparent 90%);animation:gridMove 8s linear infinite;z-index:0;}
+@keyframes gridMove{from{background-position:0 0}to{background-position:0 44px}}
+.orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.35;z-index:0;animation:orbFloat 14s ease-in-out infinite;}
+.orb-1{width:340px;height:340px;background:var(--ai-cyan);top:-80px;left:-60px;}
+.orb-2{width:300px;height:300px;background:var(--ai-purple);bottom:-60px;right:-40px;animation-delay:-5s;}
+.orb-3{width:220px;height:220px;background:var(--ai-green);top:40%;left:60%;animation-delay:-9s;}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-30px) scale(1.15)}66%{transform:translate(-30px,20px) scale(.9)}}
+.ghost-layer{position:relative;z-index:2;height:100vh;display:flex;flex-direction:column;}
+.ghost-hud{display:flex;align-items:center;gap:16px;padding:14px 22px;background:linear-gradient(90deg, rgba(3,12,10,.9), rgba(3,12,10,.6));border-bottom:1px solid rgba(0,240,255,.18);backdrop-filter:blur(12px);box-shadow:0 4px 30px rgba(0,240,255,.06);}
+.ghost-logo{display:flex;align-items:center;gap:14px;}
+.ghost-core{width:46px;height:46px;position:relative;transform-style:preserve-3d;animation:coreSpin 8s linear infinite;}
+@keyframes coreSpin{from{transform:rotateY(0) rotateX(12deg)}to{transform:rotateY(360deg) rotateX(12deg)}}
+.ghost-core::before,.ghost-core::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid var(--ai-cyan);}
+.ghost-core::before{transform:rotateY(60deg);border-color:var(--ai-green);}
+.ghost-core::after{transform:rotateY(-60deg);border-color:var(--ai-purple);}
+.ghost-core .nucleus{position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle, #fff, var(--ai-cyan) 40%, transparent 70%);box-shadow:0 0 24px var(--ai-cyan);animation:pulse 1.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.7;transform:scale(.85)}50%{opacity:1;transform:scale(1.1)}}
+.ghost-title-wrap h1{font-family:var(--font-display);font-size:22px;font-weight:900;letter-spacing:5px;margin:0;line-height:1;background:linear-gradient(90deg, var(--ai-cyan), var(--ai-green), var(--ai-cyan));background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 4s linear infinite;text-shadow:0 0 30px rgba(0,240,255,.3);}
+@keyframes shimmer{to{background-position:200% center}}
+.ghost-title-wrap p{font-size:9px;letter-spacing:3px;color:rgba(0,240,255,.55);margin:3px 0 0;}
+.hud-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.hud-stat{font-size:10px;letter-spacing:1px;color:rgba(45,255,136,.55);font-family:var(--font-mono);}
+.hud-stat b{color:var(--ai-green);}
+.web-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 12px;border:1px solid rgba(0,240,255,.25);border-radius:20px;background:rgba(0,240,255,.04);transition:.25s;}
+.web-toggle:hover{background:rgba(0,240,255,.1);}
+.web-switch{width:34px;height:18px;border-radius:10px;background:#12261f;position:relative;transition:.25s;}
+.web-switch::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--green-dim);transition:.25s;}
+.web-toggle.on .web-switch{background:rgba(0,240,255,.3);}
+.web-toggle.on .web-switch::after{left:18px;background:var(--ai-cyan);box-shadow:0 0 10px var(--ai-cyan);}
+.web-label{font-size:10px;letter-spacing:1px;color:rgba(0,240,255,.7);font-family:var(--font-mono);}
+.new-session-btn{font-size:10px;padding:7px 14px;letter-spacing:1px;background:linear-gradient(135deg, rgba(177,75,255,.15), rgba(0,240,255,.15));border:1px solid rgba(177,75,255,.4);color:#d9b8ff;border-radius:8px;cursor:pointer;font-family:var(--font-mono);transition:.25s;-webkit-appearance:none;}
+.new-session-btn:hover{box-shadow:0 0 16px rgba(177,75,255,.4);transform:translateY(-1px);}
+.status-live{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;color:var(--ai-green);font-family:var(--font-mono);}
+.status-live .dot{width:8px;height:8px;border-radius:50%;background:var(--ai-green);box-shadow:0 0 10px var(--ai-green);animation:blink 1.5s infinite;}
+.quick-bar{display:flex;gap:8px;padding:12px 22px;flex-wrap:wrap;border-bottom:1px solid rgba(0,240,255,.08);background:rgba(3,10,8,.4);}
+.quick-label{font-size:9px;letter-spacing:2px;color:rgba(45,255,136,.4);align-self:center;font-family:var(--font-mono);}
+.chip{font-size:10px;padding:6px 14px;letter-spacing:.5px;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.2);color:rgba(0,240,255,.85);border-radius:16px;cursor:pointer;font-family:var(--font-mono);transition:.2s;white-space:nowrap;transform-style:preserve-3d;}
+.chip:hover{background:rgba(0,240,255,.15);border-color:var(--ai-cyan);color:#fff;transform:translateY(-2px) translateZ(10px);box-shadow:0 6px 18px rgba(0,240,255,.25);}
+.chip .ci{margin-right:5px;}
+.chat-scroll{flex:1;overflow-y:auto;padding:24px 22px;scroll-behavior:smooth;}
+.chat-scroll::-webkit-scrollbar{width:6px;}
+.chat-scroll::-webkit-scrollbar-thumb{background:rgba(0,240,255,.25);border-radius:3px;}
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70%;text-align:center;padding:20px;animation:fadeUp .6s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.welcome-orb{width:130px;height:130px;margin-bottom:24px;position:relative;transform-style:preserve-3d;animation:orbSpin 12s linear infinite;}
+@keyframes orbSpin{from{transform:rotateY(0) rotateX(15deg)}to{transform:rotateY(360deg) rotateX(15deg)}}
+.welcome-orb .ring{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;}
+.welcome-orb .ring:nth-child(1){border-top-color:var(--ai-cyan);border-bottom-color:var(--ai-cyan);animation:ringA 3s linear infinite;}
+.welcome-orb .ring:nth-child(2){border-left-color:var(--ai-green);border-right-color:var(--ai-green);transform:rotateY(60deg);animation:ringA 4s linear infinite reverse;}
+.welcome-orb .ring:nth-child(3){border-top-color:var(--ai-purple);border-bottom-color:var(--ai-purple);transform:rotateY(120deg);animation:ringA 5s linear infinite;}
+@keyframes ringA{to{transform:rotateZ(360deg)}}
+.welcome-orb .skull{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:44px;filter:drop-shadow(0 0 20px var(--ai-cyan));animation:pulse 2s ease-in-out infinite;}
+.welcome h2{font-family:var(--font-display);font-size:26px;letter-spacing:4px;margin:0 0 12px;background:linear-gradient(90deg, var(--ai-cyan), var(--ai-green));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.welcome p{color:rgba(45,255,136,.6);font-size:12px;line-height:1.9;max-width:560px;margin:0 auto 26px;}
+.cap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;max-width:760px;width:100%;}
+.cap-card{background:linear-gradient(145deg, rgba(0,240,255,.05), rgba(3,12,10,.4));border:1px solid rgba(0,240,255,.15);border-radius:14px;padding:18px;text-align:left;cursor:pointer;transition:.28s;transform-style:preserve-3d;}
+.cap-card:hover{transform:translateY(-4px) rotateX(4deg);border-color:var(--ai-cyan);box-shadow:0 12px 30px rgba(0,240,255,.18);}
+.cap-card .icon{font-size:22px;margin-bottom:10px;display:block;}
+.cap-card h4{font-family:var(--font-display);font-size:12px;letter-spacing:1px;color:var(--ai-cyan);margin:0 0 6px;}
+.cap-card p{font-size:10.5px;color:rgba(45,255,136,.5);line-height:1.6;margin:0;}
+.msg{display:flex;gap:14px;margin-bottom:22px;animation:msgIn .35s cubic-bezier(.2,.8,.2,1);}
+@keyframes msgIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+.msg.user{flex-direction:row-reverse;}
+.avatar{width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:900;font-size:16px;transform-style:preserve-3d;}
+.msg.ai .avatar{background:linear-gradient(135deg, rgba(0,240,255,.25), rgba(45,255,136,.15));border:1px solid var(--ai-cyan);color:var(--ai-cyan);box-shadow:0 0 18px rgba(0,240,255,.3), inset 0 0 12px rgba(0,240,255,.15);animation:avatarFloat 3s ease-in-out infinite;}
+@keyframes avatarFloat{0%,100%{transform:translateY(0) rotateY(0)}50%{transform:translateY(-3px) rotateY(12deg)}}
+.msg.user .avatar{background:linear-gradient(135deg, rgba(177,75,255,.25), rgba(255,45,120,.15));border:1px solid var(--ai-purple);color:#d9b8ff;box-shadow:0 0 14px rgba(177,75,255,.3);}
+.msg-content{max-width:75%;}
+.msg.user .msg-content{display:flex;flex-direction:column;align-items:flex-end;}
+.bubble{padding:14px 18px;border-radius:16px;font-size:13px;line-height:1.75;position:relative;word-wrap:break-word;}
+.msg.ai .bubble{background:linear-gradient(145deg, rgba(8,20,16,.85), rgba(3,12,10,.7));border:1px solid rgba(0,240,255,.2);color:#d4ffe8;border-top-left-radius:4px;box-shadow:0 6px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(0,240,255,.05);}
+.msg.user .bubble{background:linear-gradient(135deg, rgba(177,75,255,.18), rgba(0,240,255,.1));border:1px solid rgba(177,75,255,.3);color:#fff;border-top-right-radius:4px;}
+.msg-time{font-size:9px;color:rgba(45,255,136,.35);margin-top:6px;letter-spacing:1px;font-family:var(--font-mono);}
+.bubble h3{font-family:var(--font-display);font-size:14px;color:var(--ai-cyan);letter-spacing:1px;margin:14px 0 8px;}
+.bubble h3:first-child{margin-top:0;}
+.bubble p{margin:0 0 10px;}
+.bubble p:last-child{margin-bottom:0;}
+.bubble strong{color:var(--ai-green);font-weight:700;}
+.bubble em{color:var(--ai-cyan);font-style:italic;}
+.bubble ul{margin:8px 0;padding-left:20px;}
+.bubble li{margin:4px 0;}
+.bubble code{background:rgba(0,240,255,.1);color:var(--ai-cyan);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:12px;}
+.bubble pre{background:#020a08;border:1px solid rgba(0,240,255,.15);border-radius:10px;padding:14px;margin:10px 0;overflow-x:auto;position:relative;}
+.bubble pre code{background:none;color:#8affc8;padding:0;font-size:12px;line-height:1.6;display:block;}
+.bubble pre::before{content:'CODE';position:absolute;top:6px;right:10px;font-size:8px;letter-spacing:2px;color:rgba(0,240,255,.4);font-family:var(--font-mono);}
+.typing{display:flex;gap:6px;padding:4px 0;align-items:center;}
+.typing span{width:8px;height:8px;border-radius:50%;background:var(--ai-cyan);animation:typeDot 1.2s ease-in-out infinite;box-shadow:0 0 8px var(--ai-cyan);}
+.typing span:nth-child(2){animation-delay:.2s;}
+.typing span:nth-child(3){animation-delay:.4s;}
+@keyframes typeDot{0%,60%,100%{transform:translateY(0) scale(.8);opacity:.5}30%{transform:translateY(-8px) scale(1.1);opacity:1}}
+.input-dock{padding:16px 22px 20px;background:linear-gradient(0deg, rgba(3,12,10,.95), rgba(3,12,10,.5));border-top:1px solid rgba(0,240,255,.15);backdrop-filter:blur(12px);}
+.input-shell{display:flex;align-items:flex-end;gap:12px;background:linear-gradient(145deg, rgba(8,20,16,.8), rgba(3,12,10,.6));border:1px solid rgba(0,240,255,.25);border-radius:18px;padding:10px 12px 10px 18px;transition:.25s;box-shadow:inset 0 0 20px rgba(0,240,255,.04);}
+.input-shell:focus-within{border-color:var(--ai-cyan);box-shadow:0 0 0 3px rgba(0,240,255,.08), 0 0 30px rgba(0,240,255,.15), inset 0 0 20px rgba(0,240,255,.06);}
+.input-shell textarea{flex:1;background:none;border:none;outline:none;resize:none;color:#d4ffe8;font-family:var(--font-mono);font-size:13px;line-height:1.6;max-height:140px;padding:6px 0;}
+.input-shell textarea::placeholder{color:rgba(45,255,136,.35);}
+.send-btn{display:flex;align-items:center;gap:7px;padding:10px 18px;border-radius:14px;cursor:pointer;background:linear-gradient(135deg, var(--ai-cyan), var(--ai-green));color:#021410;font-family:var(--font-display);font-weight:700;font-size:12px;letter-spacing:2px;border:none;transition:.22s;-webkit-appearance:none;box-shadow:0 4px 16px rgba(0,240,255,.3);}
+.send-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,240,255,.5);}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;}
+.input-hint{font-size:9px;color:rgba(45,255,136,.35);margin-top:10px;text-align:center;letter-spacing:1px;font-family:var(--font-mono);}
+.nav-item.active{border-left-color:var(--ai-cyan)!important;}
+@media(max-width:900px){.msg-content{max-width:88%;}.ghost-title-wrap p{display:none;}.hud-stat{display:none;}}
+</style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item active"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>NEURAL LINK ACTIVE</div>
+    </div>
+  </nav>
+
+  <div class="main" style="padding:0;overflow:hidden">
+    <div class="ghost-root">
+      <canvas id="neural-canvas"></canvas>
+      <div class="grid-floor"></div>
+      <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+
+      <div class="ghost-layer">
+        <div class="ghost-hud">
+          <div class="ghost-logo">
+            <div class="ghost-core"><div class="nucleus"></div></div>
+            <div class="ghost-title-wrap">
+              <h1>GHOST-AI</h1>
+              <p>AI-POWERED SECURITY INTELLIGENCE ENGINE</p>
+            </div>
+          </div>
+          <div class="hud-right">
+            <span class="hud-stat">MSGS <b id="msg-count">0</b></span>
+            <span class="hud-stat">MODEL <b>gpt-4o-mini</b></span>
+            <div class="web-toggle" id="web-toggle" onclick="toggleWeb()">
+              <div class="web-switch"></div>
+              <span class="web-label" id="web-label">WEB SEARCH OFF</span>
+            </div>
+            <button class="new-session-btn" onclick="newSession()">⟳ NEW SESSION</button>
+            <div class="status-live"><div class="dot"></div>ONLINE</div>
+          </div>
+        </div>
+
+        <div class="quick-bar">
+          <span class="quick-label">QUICK ACCESS</span>
+          <button class="chip" onclick="quickAsk('Explain SQL injection with a systematic exploitation methodology and prevention techniques')"><span class="ci">⚡</span>SQLi Explain</button>
+          <button class="chip" onclick="quickAsk('Give me a strategic approach to solving CTF challenges across web, crypto, forensics and pwn categories')"><span class="ci">🚩</span>CTF Strategy</button>
+          <button class="chip" onclick="quickAsk('Explain reconnaissance and enumeration techniques for a penetration test')"><span class="ci">🔍</span>Recon Techniques</button>
+          <button class="chip" onclick="quickAsk('Show me common XSS payloads and explain what each one does and how to prevent them')"><span class="ci">💉</span>XSS Payloads</button>
+          <button class="chip" onclick="quickAsk('Explain the OWASP Top 10 web application vulnerabilities with examples')"><span class="ci">📋</span>OWASP Top 10</button>
+          <button class="chip" onclick="quickAsk('Explain Linux privilege escalation techniques and enumeration methodology')"><span class="ci">🔑</span>Priv Esc Linux</button>
+          <button class="chip" onclick="quickAsk('Explain network enumeration and how to use nmap effectively')"><span class="ci">🌐</span>Network Enum</button>
+        </div>
+
+        <div class="chat-scroll" id="chat-area">
+          <div class="welcome" id="welcome-screen">
+            <div class="welcome-orb">
+              <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+              <div class="skull">💀</div>
+            </div>
+            <h2>GHOST-AI ONLINE</h2>
+            <p>Elite cybersecurity intelligence powered by GPT-4o-mini.<br>
+               Ask anything — CTF hints, vulnerability analysis, exploit techniques, malware analysis, OSINT methodology, and more.</p>
+            <div class="cap-grid">
+              <div class="cap-card" onclick="quickAsk('Give me strategic hints and methodology for capture-the-flag challenges without spoilers')">
+                <span class="icon">🚩</span><h4>CTF ASSISTANT</h4>
+                <p>Strategic hints and methodology for CTF challenges without spoilers.</p>
+              </div>
+              <div class="cap-card" onclick="quickAsk('Give me deep technical explanations of vulnerabilities, exploits and attack techniques')">
+                <span class="icon">💥</span><h4>VULN ANALYSIS</h4>
+                <p>Deep technical explanations of vulnerabilities, exploits, and attack techniques.</p>
+              </div>
+              <div class="cap-card" onclick="quickAsk('Generate and explain security payloads for XSS, SQLi, SSTI, LFI and more')">
+                <span class="icon">📜</span><h4>PAYLOAD LIBRARY</h4>
+                <p>Generate and explain security payloads for XSS, SQLi, SSTI, LFI and more.</p>
+              </div>
+              <div class="cap-card" onclick="quickAsk('Give me step-by-step OSINT intelligence gathering methodology for domains, IPs and individuals')">
+                <span class="icon">🔎</span><h4>OSINT GUIDE</h4>
+                <p>Step-by-step intelligence gathering methodology for domains, IPs and individuals.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-dock">
+          <div class="input-shell">
+            <textarea id="ai-input" rows="1" placeholder="Ask GHOST-AI anything about cybersecurity..."
+                      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+            <button class="send-btn" id="send-btn" onclick="sendMessage()">SEND ↑</button>
+          </div>
+          <div class="input-hint">ENTER to send · SHIFT+ENTER for new line · Neural streaming enabled</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+let currentUser = null;
+let webSearchEnabled = false;
+let messages = [];
+let isThinking = false;
+
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  currentUser = user;
+  const { data: p } = await getProfile(user.id);
+  document.getElementById('sb-username').textContent = p?.username || user.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.03);
+  initNeural();
+  setTimeout(loadSession, 400);
+})();
+
+function toggleWeb(){
+  webSearchEnabled = !webSearchEnabled;
+  document.getElementById('web-toggle').classList.toggle('on', webSearchEnabled);
+  document.getElementById('web-label').textContent = webSearchEnabled ? 'WEB SEARCH ON' : 'WEB SEARCH OFF';
+}
+
+const SYSTEM_PROMPT = `You are GHOST-AI, an elite cybersecurity intelligence assistant embedded inside CyberOps — a unified security platform for hackers, CTF players, and penetration testers.
+
+Your personality:
+- Direct, technical, and knowledgeable — you speak like an elite security researcher
+- You use precise terminology but explain things clearly
+- You are helpful for EDUCATIONAL purposes — your users are learning security professionals
+- You never refuse security questions that have educational value
+
+Your capabilities:
+- CTF challenge hints and methodology (give strategic hints, never outright flags)
+- Vulnerability explanations (SQL injection, XSS, buffer overflows, RCE, LFI, SSRF, etc.)
+- Payload generation for educational/testing purposes
+- Penetration testing methodology and techniques
+- Malware analysis and reverse engineering concepts
+- OSINT techniques and investigation methodology
+- Network security, reconnaissance, enumeration
+- Linux/Windows privilege escalation
+- Web application security (OWASP Top 10)
+- Cryptography and hash cracking concepts
+
+Formatting:
+- Use markdown — headers with ###, **bold** for important terms, \`inline code\` for commands/payloads
+- Put code examples in \`\`\`language blocks
+- Keep responses focused and scannable — use bullet points and numbered lists
+- For payloads, always explain what each part does`;
+
+function quickAsk(text){
+  document.getElementById('ai-input').value = text;
+  sendMessage();
+}
+
+async function sendMessage(){
+  if (isThinking) return;
+  const input = document.getElementById('ai-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const welcome = document.getElementById('welcome-screen');
+  if (welcome) welcome.remove();
+
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('send-btn').disabled = true;
+  isThinking = true;
+
+  addMessage('user', text);
+  messages.push({ role:'user', content:text });
+  updateMsgCount();
+
+  const thinkEl = addTyping();
+
+  try{
+    const body = { model:'gpt-4o-mini', system:SYSTEM_PROMPT, messages:messages.slice(-20), stream:true };
+    const res = await fetch('/api/ai', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+    if (!res.ok || !res.body) throw new Error('Network error — check your connection');
+
+    thinkEl.remove();
+    const aiEl = addMessage('ai', '');
+    const bubble = aiEl.querySelector('.bubble');
+    const chat = document.getElementById('chat-area');
+
+    let fullText = '';
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    outer: while(true){
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream:true });
+      for (const line of chunk.split('\n')){
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (raw === '[DONE]') break outer;
+        try{
+          const json = JSON.parse(raw);
+          const token = json.choices?.[0]?.delta?.content || '';
+          if (token){
+            fullText += token;
+            bubble.innerHTML = renderMarkdown(fullText) + '<span style="color:var(--ai-cyan);animation:blink 1s step-end infinite">▋</span>';
+            chat.scrollTop = chat.scrollHeight;
+          }
+        }catch(_){}
+      }
+    }
+
+    bubble.innerHTML = renderMarkdown(fullText) || '<p>No response received.</p>';
+    messages.push({ role:'assistant', content:fullText });
+    updateMsgCount();
+    saveSession();
+
+  }catch(e){
+    thinkEl.remove();
+    addMessage('ai', `**CONNECTION ERROR**\n\n${e.message}\n\nCheck your network and try again.`);
+  }
+
+  document.getElementById('send-btn').disabled = false;
+  isThinking = false;
+  input.focus();
+}
+
+function addMessage(role, text){
+  const chat = document.getElementById('chat-area');
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const label = role === 'ai' ? 'G' : (document.getElementById('sb-username').textContent.charAt(0).toUpperCase() || 'U');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `<div class="avatar">${label}</div><div class="msg-content"><div class="bubble">${renderMarkdown(text)}</div><div class="msg-time">${now}</div></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function addTyping(){
+  const chat = document.getElementById('chat-area');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.innerHTML = `<div class="avatar">G</div><div class="msg-content"><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function renderMarkdown(text){
+  if (!text) return '';
+  const codeBlocks = [];
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const esc = code.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    codeBlocks.push(`<pre><code class="lang-${lang||''}">${esc}</code></pre>`);
+    return `\n\n__CODE${codeBlocks.length-1}__\n\n`;
+  });
+  text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  text = text.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  text = text.replace(/^#{2,3} (.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^# (.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  text = text.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+  text = text.replace(/^[-*•]\s+(.+)$/gm, '<li>$1</li>');
+  text = text.replace(/(<li>[\s\S]*?<\/li>)(\n<li>[\s\S]*?<\/li>)*/g, m => `<ul>${m}</ul>`);
+  const blocks = text.split(/\n{2,}/);
+  return blocks.map(b => {
+    b = b.trim();
+    if (!b) return '';
+    const cm = b.match(/^__CODE(\d+)__$/);
+    if (cm) return codeBlocks[parseInt(cm[1])];
+    if (/^<(h[1-6]|ul|ol|pre|blockquote)/.test(b)) return b;
+    return '<p>' + b.replace(/\n/g,'<br>') + '</p>';
+  }).join('\n') || '<p></p>';
+}
+
+function handleKey(e){ if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } }
+function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
+function updateMsgCount(){ document.getElementById('msg-count').textContent = messages.length; }
+function saveSession(){ try{ localStorage.setItem('ghostai_session', JSON.stringify(messages)); }catch(_){} }
+function loadSession(){
+  try{
+    const saved = localStorage.getItem('ghostai_session');
+    if (!saved) return;
+    const msgs = JSON.parse(saved);
+    if (!Array.isArray(msgs) || !msgs.length) return;
+    const welcome = document.getElementById('welcome-screen');
+    if (welcome) welcome.remove();
+    messages = msgs;
+    msgs.forEach(m => addMessage(m.role === 'assistant' ? 'ai' : m.role, m.content));
+    updateMsgCount();
+  }catch(_){}
+}
+function newSession(){
+  messages = [];
+  localStorage.removeItem('ghostai_session');
+  location.reload();
+}
+
+function initNeural(){
+  const canvas = document.getElementById('neural-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let W, H, nodes = [];
+  function resize(){
+    const rect = canvas.parentElement.getBoundingClientRect();
+    W = canvas.width = rect.width;
+    H = canvas.height = rect.height;
+    const count = Math.min(70, Math.floor(W*H/22000));
+    nodes = Array.from({length:count}, () => ({ x:Math.random()*W, y:Math.random()*H, z:Math.random()*2+0.5, vx:(Math.random()-0.5)*0.4, vy:(Math.random()-0.5)*0.4 }));
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for (let i=0;i<nodes.length;i++){
+      for (let j=i+1;j<nodes.length;j++){
+        const a=nodes[i], b=nodes[j];
+        const dx=a.x-b.x, dy=a.y-b.y;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if (dist<150){
+          ctx.strokeStyle=`rgba(0,240,255,${(1-dist/150)*0.35})`;
+          ctx.lineWidth=0.5;
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        }
+      }
+    }
+    nodes.forEach(n => {
+      n.x+=n.vx; n.y+=n.vy;
+      if (n.x<0||n.x>W) n.vx*=-1;
+      if (n.y<0||n.y>H) n.vy*=-1;
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.z*1.4,0,Math.PI*2);
+      ctx.fillStyle=`rgba(45,255,136,${0.4+n.z*0.2})`;
+      ctx.shadowBlur=8; ctx.shadowColor='rgba(0,240,255,.6)';
+      ctx.fill(); ctx.shadowBlur=0;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+</script>
+</body>
+</html>

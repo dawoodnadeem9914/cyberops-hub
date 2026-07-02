@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — OSCP Roadmap</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+  <style>
+    .roadmap-layout { display:grid; grid-template-columns:1fr 320px; gap:14px; margin-top:14px; }
+    @media(max-width:1100px){ .roadmap-layout { grid-template-columns:1fr; } }
+
+    .tree-canvas-wrap {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:6px;
+      overflow:auto; min-height:600px; position:relative;
+    }
+    #skill-canvas { min-width:800px; cursor:grab; user-select:none; }
+    #skill-canvas:active { cursor:grabbing; }
+
+    .cert-tabs { display:flex; gap:6px; margin-bottom:10px; }
+    .cert-tab {
+      padding:5px 14px; font-family:var(--font-mono); font-size:11px; letter-spacing:1px;
+      cursor:pointer; border-radius:3px; border:1px solid var(--border);
+      color:var(--green-dim); background:var(--bg-card); transition:all .15s;
+    }
+    .cert-tab.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,191,255,.06); }
+
+    .node-detail {
+      display:none;
+    }
+    .node-detail.show { display:block; }
+    .nd-title { font-family:var(--font-display); color:var(--green); font-size:14px; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
+    .nd-category { font-size:10px; color:var(--green-dim); letter-spacing:1.5px; margin-bottom:12px; }
+    .nd-desc { font-size:12px; color:var(--green-dim); line-height:1.8; margin-bottom:12px; }
+
+    .resource-link {
+      display:flex; align-items:center; gap:8px; padding:7px 10px;
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:4px;
+      margin-bottom:6px; font-size:11px; color:var(--green-dim); transition:all .15s;
+    }
+    .resource-link:hover { border-color:var(--green-dim); color:var(--green); }
+    .resource-type { font-size:9px; padding:1px 5px; border-radius:2px; flex-shrink:0; }
+    .rt-free  { background:rgba(34,197,34,.1);   color:var(--green); border:1px solid var(--green-dim); }
+    .rt-paid  { background:rgba(197,165,34,.1); color:var(--yellow); border:1px solid var(--yellow-dim); }
+    .rt-cert  { background:rgba(0,191,255,.1); color:var(--cyan); border:1px solid var(--cyan); }
+
+    .progress-section { margin-top:12px; }
+    .ps-title { font-size:10px; color:var(--green-dim); letter-spacing:1px; margin-bottom:8px; }
+
+    .overall-progress { background:var(--bg-card2); border:1px solid var(--border); border-radius:5px; padding:12px 14px; margin-bottom:10px; }
+    .op-num { font-family:var(--font-display); font-size:28px; font-weight:700; color:var(--green); }
+    .op-lbl { font-size:10px; color:var(--green-dim); margin-top:2px; }
+    .op-track { margin-top:8px; }
+
+    .cert-time { font-size:11px; color:var(--green-dim); display:flex; align-items:center; gap:6px; margin-top:6px; }
+    .cert-time-val { color:var(--yellow); font-family:var(--font-display); font-size:13px; }
+
+    .legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+    .leg-item { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--green-dim); }
+    .leg-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item active"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>SKILL TREE</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">// OSCP ROADMAP — INTERACTIVE SKILL TREE</span>
+      <div class="topbar-right">
+        <span class="tb-item">COMPLETED <span id="tb-done" style="color:var(--green)">0</span>/<span id="tb-total">0</span></span>
+        <span class="tb-item">EST. TIME <span id="tb-time" style="color:var(--yellow)">--</span></span>
+        <span class="tb-item">CERT <span id="tb-cert" style="color:var(--cyan)">OSCP</span></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="cert-tabs mt">
+        <button class="cert-tab active" onclick="switchCert('oscp',this)">OSCP</button>
+        <button class="cert-tab" onclick="switchCert('ceh',this)">CEH</button>
+        <button class="cert-tab" onclick="switchCert('cissp',this)">CISSP</button>
+        <button class="cert-tab" onclick="switchCert('ejpt',this)">eJPT (BEGINNER)</button>
+      </div>
+
+      <div class="roadmap-layout">
+        <!-- Skill tree canvas -->
+        <div>
+          <div class="legend">
+            <div class="leg-item"><div class="leg-dot" style="background:#22c522;border:2px solid #22c522"></div>Completed</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#1a3a1a;border:2px solid #c5a522"></div>In Progress</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#0a1a0a;border:2px solid #1a3a1a"></div>Locked</div>
+            <div class="leg-item"><div class="leg-dot" style="background:rgba(0,191,255,.2);border:2px solid var(--cyan)"></div>Certification</div>
+          </div>
+          <div class="tree-canvas-wrap">
+            <canvas id="skill-canvas" width="840" height="780"></canvas>
+          </div>
+          <div style="font-size:10px;color:#1a5a1a;text-align:center;margin-top:6px">Click a node to view details and mark as complete</div>
+        </div>
+
+        <!-- Right panel -->
+        <div>
+          <div class="overall-progress card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div class="op-num" id="prog-pct">0%</div>
+                <div class="op-lbl">OVERALL PROGRESS</div>
+              </div>
+              <button class="btn btn-sm" onclick="resetProgress()" style="border:1px solid var(--red-dim);color:var(--red);background:transparent;font-size:10px">RESET</button>
+            </div>
+            <div class="op-track">
+              <div class="bar-row" style="margin-bottom:4px">
+                <div class="bar-track" style="flex:1">
+                  <div class="bar-fill" id="prog-bar" style="width:0%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="cert-time">
+              <span>EST. TIME TO CERT:</span>
+              <span class="cert-time-val" id="est-time">150h</span>
+            </div>
+          </div>
+
+          <!-- Node detail -->
+          <div class="card" id="node-detail-card" style="margin-top:10px">
+            <div style="color:#1a5a1a;font-size:11px;text-align:center;padding:20px 0">
+              Click any node in the skill tree to see details, resources, and related challenges.
+            </div>
+            <div class="node-detail" id="node-detail">
+              <div class="nd-title" id="nd-title"></div>
+              <div class="nd-category" id="nd-category"></div>
+              <div class="nd-desc" id="nd-desc"></div>
+              <div id="nd-resources"></div>
+              <div style="display:flex;gap:8px;margin-top:12px">
+                <button class="btn btn-primary btn-sm" id="nd-complete-btn" onclick="toggleNode()">MARK COMPLETE</button>
+                <button class="btn btn-sm" onclick="document.getElementById('node-detail').classList.remove('show')" style="border:1px solid var(--border);color:var(--green-dim);background:transparent">CLOSE</button>
+              </div>
+              <div id="nd-related" style="margin-top:12px;display:none">
+                <div style="font-size:10px;color:var(--green-dim);letter-spacing:1px;margin-bottom:6px">RELATED MODULES</div>
+                <div id="nd-related-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <span class="bb">CERT <span id="bb-cert">OSCP</span></span>
+      <span class="bb">NODES <span id="bb-nodes">0</span></span>
+      <span class="bb">PROGRESS <span id="bb-prog">0%</span></span>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+const CERT_TREES = {
+  oscp: {
+    name: 'OSCP', color: '#22c522', time: '150h',
+    nodes: [
+      { id:'linux', x:400, y:60, label:'Linux\nFundamentals', cat:'FOUNDATION', time:'15h',
+        desc:'Command line proficiency, file system navigation, process management, permissions, bash scripting, package management.',
+        resources:[{t:'TryHackMe — Linux Fundamentals',type:'free'},{t:'OverTheWire: Bandit',type:'free'},{t:'The Linux Command Line (book)',type:'paid'}],
+        prereqs:[] },
+      { id:'networking', x:180, y:180, label:'Networking\nFundamentals', cat:'FOUNDATION', time:'12h',
+        desc:'TCP/IP model, subnetting, DNS, HTTP/HTTPS, common protocols, Wireshark packet analysis, basic firewall concepts.',
+        resources:[{t:'TryHackMe — Pre-Security Path',type:'free'},{t:'Cisco NetAcad',type:'free'},{t:'Professor Messer Network+',type:'free'}],
+        prereqs:['linux'] },
+      { id:'webbasics', x:620, y:180, label:'Web App\nBasics', cat:'FOUNDATION', time:'10h',
+        desc:'HTTP request/response cycle, cookies, sessions, same-origin policy, browser dev tools, Burp Suite basics.',
+        resources:[{t:'PortSwigger Web Security Academy',type:'free'},{t:'OWASP Top 10',type:'free'},{t:'TryHackMe — Web Fundamentals',type:'free'}],
+        prereqs:['linux'] },
+      { id:'recon', x:180, y:320, label:'Reconnaissance\n& OSINT', cat:'ENUMERATION', time:'12h',
+        desc:'Passive and active recon, Nmap scanning, service enumeration, subdomain discovery, Google dorks, Shodan.',
+        resources:[{t:'TryHackMe — Nmap',type:'free'},{t:'TCM Security Practical Ethical Hacking',type:'paid'},{t:'Nmap Network Scanning (book)',type:'paid'}],
+        prereqs:['networking'] },
+      { id:'webvulns', x:620, y:320, label:'Web\nVulnerabilities', cat:'EXPLOITATION', time:'25h',
+        desc:'SQLi, XSS, SSRF, XXE, IDOR, authentication bypass, path traversal, SSTI. Hands-on practice on intentionally vulnerable apps.',
+        resources:[{t:'PortSwigger Web Security Academy',type:'free'},{t:'OWASP WebGoat',type:'free'},{t:'TryHackMe — Web Hacking Fundamentals',type:'free'}],
+        prereqs:['webbasics'] },
+      { id:'exploitation', x:400, y:420, label:'Exploitation\nTechniques', cat:'EXPLOITATION', time:'20h',
+        desc:'Metasploit framework, manual exploitation, CVE research, public PoC adaptation, vulnerability chaining, staged vs stageless payloads.',
+        resources:[{t:'TryHackMe — Metasploit',type:'free'},{t:'Offensive Security PEN-200',type:'paid'},{t:'HackTheBox Academy',type:'paid'}],
+        prereqs:['recon','webvulns'] },
+      { id:'privesc-linux', x:220, y:540, label:'Linux\nPriv-Esc', cat:'POST-EXPLOITATION', time:'15h',
+        desc:'SUID/SGID binaries, cron jobs, sudo misconfigurations, writable paths, kernel exploits, LinPEAS enumeration, PATH hijacking.',
+        resources:[{t:'GTFOBins',type:'free'},{t:'TryHackMe — Linux PrivEsc',type:'free'},{t:'HackTheBox — Linux Privesc Path',type:'paid'}],
+        prereqs:['exploitation'] },
+      { id:'privesc-win', x:580, y:540, label:'Windows\nPriv-Esc', cat:'POST-EXPLOITATION', time:'15h',
+        desc:'Token impersonation, AlwaysInstallElevated, unquoted service paths, DLL hijacking, credential hunting, WinPEAS, PowerShell enumeration.',
+        resources:[{t:'LOLBAS Project',type:'free'},{t:'TryHackMe — Windows PrivEsc',type:'free'},{t:'HackTheBox — Windows Privesc Path',type:'paid'}],
+        prereqs:['exploitation'] },
+      { id:'activedir', x:400, y:640, label:'Active\nDirectory', cat:'ENTERPRISE', time:'20h',
+        desc:'AD enumeration with BloodHound/SharpHound, Kerberoasting, AS-REP Roasting, Pass-the-Hash, Pass-the-Ticket, DCSync, domain escalation paths.',
+        resources:[{t:'TryHackMe — Active Directory Basics',type:'free'},{t:'TCM Security Practical Active Directory',type:'paid'},{t:'HackTheBox — AD Path',type:'paid'}],
+        prereqs:['privesc-linux','privesc-win'] },
+      { id:'bufferoverflow', x:180, y:640, label:'Buffer\nOverflow', cat:'EXPLOITATION', time:'12h',
+        desc:'Stack buffer overflow concepts, finding offsets with pattern_create, controlling EIP, bad character identification, finding JMP ESP, shellcode generation.',
+        resources:[{t:'TryHackMe — Buffer Overflow Prep',type:'free'},{t:'LiveOverflow Binary Exploitation',type:'free'},{t:'Offensive Security PEN-200',type:'paid'}],
+        prereqs:['exploitation'] },
+      { id:'oscp', x:400, y:760, label:'OSCP\nCERTIFICATION', cat:'CERTIFICATION', time:'exam',
+        desc:'24-hour practical exam: compromise 3 standalone machines plus an Active Directory set. Submit a professional penetration test report within 24 hours of exam end.',
+        resources:[{t:'Offensive Security PEN-200 Course',type:'cert'},{t:'OSCP Exam Guide',type:'cert'},{t:'TJNull\'s OSCP Prep List',type:'free'}],
+        prereqs:['activedir','bufferoverflow'] }
+    ],
+    edges:[
+      ['linux','networking'],['linux','webbasics'],
+      ['networking','recon'],['webbasics','webvulns'],
+      ['recon','exploitation'],['webvulns','exploitation'],
+      ['exploitation','privesc-linux'],['exploitation','privesc-win'],
+      ['exploitation','bufferoverflow'],
+      ['privesc-linux','activedir'],['privesc-win','activedir'],
+      ['activedir','oscp'],['bufferoverflow','oscp']
+    ]
+  },
+  ejpt: {
+    name: 'eJPT', color: '#3a8add', time: '60h',
+    nodes: [
+      { id:'e-linux', x:400, y:80, label:'Linux\nBasics', cat:'FOUNDATION', time:'10h', desc:'Essential Linux commands, file system, permissions, basic bash scripting.', resources:[{t:'TryHackMe — Linux Fundamentals',type:'free'}], prereqs:[] },
+      { id:'e-net', x:200, y:200, label:'Networking', cat:'FOUNDATION', time:'8h', desc:'TCP/IP, subnetting, DNS, HTTP, routing basics.', resources:[{t:'TryHackMe — Pre-Security',type:'free'}], prereqs:['e-linux'] },
+      { id:'e-web', x:600, y:200, label:'Web Basics', cat:'FOUNDATION', time:'6h', desc:'HTTP, cookies, Burp Suite intro, basic web vuln awareness.', resources:[{t:'PortSwigger Academy',type:'free'}], prereqs:['e-linux'] },
+      { id:'e-recon', x:300, y:340, label:'Recon &\nScanning', cat:'ENUMERATION', time:'10h', desc:'Nmap, Gobuster, service fingerprinting.', resources:[{t:'TryHackMe — Nmap',type:'free'}], prereqs:['e-net'] },
+      { id:'e-exploit', x:500, y:440, label:'Basic\nExploitation', cat:'EXPLOITATION', time:'12h', desc:'Metasploit basics, common CVE exploitation, web vulns.', resources:[{t:'TryHackMe — Metasploit',type:'free'},{t:'INE Starter Pass',type:'paid'}], prereqs:['e-recon','e-web'] },
+      { id:'e-ejpt', x:400, y:580, label:'eJPT\nCERTIFICATION', cat:'CERTIFICATION', time:'exam', desc:'3-hour practical exam on a simulated enterprise network. Entry-level penetration testing certification by INE/eLearnSecurity.', resources:[{t:'INE eJPT Course',type:'cert'}], prereqs:['e-exploit'] }
+    ],
+    edges:[['e-linux','e-net'],['e-linux','e-web'],['e-net','e-recon'],['e-web','e-exploit'],['e-recon','e-exploit'],['e-exploit','e-ejpt']]
+  },
+  ceh: {
+    name: 'CEH', color: '#c5a522', time: '120h',
+    nodes: [
+      { id:'c-found', x:400, y:80, label:'Security\nFoundations', cat:'FOUNDATION', time:'15h', desc:'CIA triad, threat actors, attack lifecycle, legal frameworks, compliance.', resources:[{t:'EC-Council CEH Study Guide',type:'paid'}], prereqs:[] },
+      { id:'c-recon', x:200, y:220, label:'Footprinting\n& Recon', cat:'ENUMERATION', time:'12h', desc:'OSINT, Google hacking, Maltego, Shodan, social engineering vectors.', resources:[{t:'EC-Council iLabs',type:'paid'}], prereqs:['c-found'] },
+      { id:'c-scan', x:600, y:220, label:'Scanning &\nEnumeration', cat:'ENUMERATION', time:'10h', desc:'Nmap, Nessus, vulnerability scanning, banner grabbing, SNMP enumeration.', resources:[{t:'TryHackMe — Nmap',type:'free'}], prereqs:['c-found'] },
+      { id:'c-exploit', x:400, y:360, label:'System\nHacking', cat:'EXPLOITATION', time:'20h', desc:'Password attacks, privilege escalation, maintaining access, covering tracks.', resources:[{t:'EC-Council CEH Practical',type:'cert'},{t:'HackTheBox',type:'paid'}], prereqs:['c-recon','c-scan'] },
+      { id:'c-web', x:200, y:480, label:'Web App\nHacking', cat:'EXPLOITATION', time:'15h', desc:'OWASP Top 10, Burp Suite, SQL injection, XSS, session hijacking.', resources:[{t:'PortSwigger Academy',type:'free'}], prereqs:['c-exploit'] },
+      { id:'c-crypt', x:600, y:480, label:'Cryptography', cat:'ADVANCED', time:'10h', desc:'Symmetric/asymmetric encryption, PKI, hash functions, cryptanalysis basics.', resources:[{t:'CryptoHack',type:'free'}], prereqs:['c-exploit'] },
+      { id:'c-ceh', x:400, y:620, label:'CEH\nCERTIFICATION', cat:'CERTIFICATION', time:'exam', desc:'4-hour multiple choice exam (125 questions) plus optional CEH Practical 6-hour hands-on exam.', resources:[{t:'EC-Council CEH',type:'cert'}], prereqs:['c-web','c-crypt'] }
+    ],
+    edges:[['c-found','c-recon'],['c-found','c-scan'],['c-recon','c-exploit'],['c-scan','c-exploit'],['c-exploit','c-web'],['c-exploit','c-crypt'],['c-web','c-ceh'],['c-crypt','c-ceh']]
+  },
+  cissp: {
+    name: 'CISSP', color: '#8a3add', time: '200h',
+    nodes: [
+      { id:'ci-risk', x:400, y:80, label:'Security &\nRisk Management', cat:'DOMAIN 1', time:'25h', desc:'CIA triad, risk management frameworks, legal/regulatory issues, professional ethics, security policies.', resources:[{t:'(ISC)² Official Study Guide',type:'paid'},{t:'Destination CISSP podcast',type:'free'}], prereqs:[] },
+      { id:'ci-asset', x:180, y:220, label:'Asset\nSecurity', cat:'DOMAIN 2', time:'15h', desc:'Data classification, ownership, privacy, retention policies, data handling standards.', resources:[{t:'(ISC)² CISSP CBK',type:'paid'}], prereqs:['ci-risk'] },
+      { id:'ci-arch', x:620, y:220, label:'Security\nArchitecture', cat:'DOMAIN 3', time:'25h', desc:'Security models, evaluation criteria, secure design principles, cryptography, site/facility security.', resources:[{t:'CISSP Practice Tests (Sybex)',type:'paid'}], prereqs:['ci-risk'] },
+      { id:'ci-comm', x:180, y:380, label:'Communication &\nNetwork Security', cat:'DOMAIN 4', time:'20h', desc:'Network protocols, segmentation, firewalls, VPNs, wireless security, content delivery.', resources:[{t:'Professor Messer Security+',type:'free'}], prereqs:['ci-asset','ci-arch'] },
+      { id:'ci-iam', x:620, y:380, label:'Identity &\nAccess Mgmt', cat:'DOMAIN 5', time:'18h', desc:'Authentication, authorisation, MFA, federated identity, SSO, PAM, directory services.', resources:[{t:'TryHackMe — AD Fundamentals',type:'free'}], prereqs:['ci-asset','ci-arch'] },
+      { id:'ci-sec', x:400, y:500, label:'Security Assessment\n& Testing', cat:'DOMAIN 6', time:'18h', desc:'Vulnerability assessment, pen testing, log review, code review, security audits.', resources:[{t:'HackTheBox',type:'paid'},{t:'TryHackMe',type:'free'}], prereqs:['ci-comm','ci-iam'] },
+      { id:'ci-ops', x:220, y:620, label:'Security\nOperations', cat:'DOMAIN 7', time:'25h', desc:'Investigations, incident management, disaster recovery, BCP, physical security controls.', resources:[{t:'SANS SEC501',type:'paid'}], prereqs:['ci-sec'] },
+      { id:'ci-sw', x:580, y:620, label:'Software\nDev Security', cat:'DOMAIN 8', time:'20h', desc:'SDLC integration, secure coding, code review, software security assessment, database security.', resources:[{t:'OWASP Resources',type:'free'},{t:'Code-auditor in CyberOps',type:'free'}], prereqs:['ci-sec'] },
+      { id:'ci-cissp', x:400, y:760, label:'CISSP\nCERTIFICATION', cat:'CERTIFICATION', time:'exam', desc:'Adaptive 100-150 question exam (or 250 linear). Requires 5 years relevant experience. The gold standard management-level security certification.', resources:[{t:'(ISC)² Official CISSP',type:'cert'},{t:'CISSP Study Group Reddit',type:'free'}], prereqs:['ci-ops','ci-sw'] }
+    ],
+    edges:[['ci-risk','ci-asset'],['ci-risk','ci-arch'],['ci-asset','ci-comm'],['ci-arch','ci-comm'],['ci-asset','ci-iam'],['ci-arch','ci-iam'],['ci-comm','ci-sec'],['ci-iam','ci-sec'],['ci-sec','ci-ops'],['ci-sec','ci-sw'],['ci-ops','ci-cissp'],['ci-sw','ci-cissp']]
+  }
+};
+
+let currentCert = 'oscp';
+let completedNodes = JSON.parse(localStorage.getItem('roadmap_completed') || '{}');
+let selectedNode = null;
+let canvasScale = 1;
+const canvas = document.getElementById('skill-canvas');
+const ctx = canvas.getContext('2d');
+
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  document.getElementById('sb-username').textContent = user.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.07);
+  drawTree();
+  updateTopbar();
+})();
+
+function switchCert(cert, btn) {
+  currentCert = cert;
+  document.querySelectorAll('.cert-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tb-cert').textContent = CERT_TREES[cert].name;
+  document.getElementById('bb-cert').textContent = CERT_TREES[cert].name;
+  document.getElementById('est-time').textContent = CERT_TREES[cert].time;
+  document.getElementById('node-detail').classList.remove('show');
+  document.querySelector('#node-detail-card > div:first-child')?.style && (document.querySelector('#node-detail-card div[style]').style.display = 'block');
+  drawTree();
+  updateTopbar();
+}
+
+function drawTree() {
+  const tree = CERT_TREES[currentCert];
+  const w = 840, h = tree.nodes.reduce((m,n) => Math.max(m, n.y + 80), 600) + 40;
+  canvas.width = w; canvas.height = h;
+  ctx.clearRect(0,0,w,h);
+
+  // Background grid
+  ctx.strokeStyle = 'rgba(26,58,26,0.4)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+  // Edges
+  tree.edges.forEach(([a,b]) => {
+    const na = tree.nodes.find(n => n.id === a);
+    const nb = tree.nodes.find(n => n.id === b);
+    if (!na || !nb) return;
+    const doneA = isNodeComplete(a);
+    const doneB = isNodeComplete(b);
+    ctx.beginPath();
+    ctx.moveTo(na.x, na.y + 30);
+    ctx.lineTo(nb.x, nb.y - 30);
+    ctx.strokeStyle = doneA && doneB ? 'rgba(34,197,34,0.5)' : doneA ? 'rgba(34,197,34,0.25)' : 'rgba(26,58,26,0.6)';
+    ctx.lineWidth = doneA && doneB ? 2.5 : 1.5;
+    ctx.setLineDash(doneA ? [] : [5,5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Nodes
+  tree.nodes.forEach(node => drawNode(node, tree));
+  updateTopbar();
+}
+
+function isNodeComplete(id) {
+  return !!(completedNodes[currentCert] && completedNodes[currentCert][id]);
+}
+
+function isNodeUnlocked(node) {
+  if (!node.prereqs.length) return true;
+  return node.prereqs.every(p => isNodeComplete(p));
+}
+
+function drawNode(node, tree) {
+  const done = isNodeComplete(node.id);
+  const unlocked = isNodeUnlocked(node);
+  const isCert = node.cat === 'CERTIFICATION';
+  const isSelected = selectedNode?.id === node.id;
+  const R = isCert ? 46 : 38;
+
+  ctx.save();
+  ctx.translate(node.x, node.y);
+
+  // Glow for done or selected
+  if (done || isSelected) {
+    ctx.beginPath();
+    ctx.arc(0, 0, R + 8, 0, Math.PI*2);
+    const grad = ctx.createRadialGradient(0,0,R, 0,0,R+16);
+    grad.addColorStop(0, done ? 'rgba(34,197,34,0.35)' : 'rgba(0,191,255,0.25)');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // Circle
+  ctx.beginPath();
+  ctx.arc(0, 0, R, 0, Math.PI*2);
+  if (isCert) {
+    ctx.fillStyle = done ? 'rgba(34,197,34,0.2)' : 'rgba(0,191,255,0.08)';
+    ctx.fill();
+    ctx.strokeStyle = done ? tree.color : unlocked ? tree.color : '#1a3a1a';
+    ctx.lineWidth = done ? 3 : unlocked ? 2.5 : 1.5;
+    ctx.setLineDash(unlocked ? [] : [4,4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    ctx.fillStyle = done ? 'rgba(34,197,34,0.15)' : unlocked ? '#0a1a0a' : '#050a05';
+    ctx.fill();
+    ctx.strokeStyle = done ? '#22c522' : unlocked ? '#1a5a1a' : '#0d2e0d';
+    ctx.lineWidth = isSelected ? 2.5 : done ? 2 : 1.5;
+    ctx.stroke();
+  }
+
+  // Checkmark for done
+  if (done) {
+    ctx.fillStyle = '#22c522';
+    ctx.font = isCert ? 'bold 18px Arial' : '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('✓', 0, isCert ? -4 : -2);
+  }
+
+  // Label
+  const lines = node.label.split('\n');
+  const fontSize = isCert ? 11 : 10;
+  ctx.font = `${done ? 'bold ' : ''}${fontSize}px 'Share Tech Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = done ? '#22c522' : unlocked ? '#1a8a1a' : '#1a3a1a';
+  const startY = done ? (isCert ? 10 : 6) : (lines.length > 1 ? -6 : 4);
+  lines.forEach((line, i) => {
+    ctx.fillText(line, 0, startY + i * (fontSize + 2));
+  });
+
+  // Time estimate
+  if (!isCert && unlocked && !done) {
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#c5a522';
+    ctx.fillText(node.time, 0, R - 6);
+  }
+
+  ctx.restore();
+}
+
+function updateTopbar() {
+  const tree = CERT_TREES[currentCert];
+  const total = tree.nodes.length;
+  const done = tree.nodes.filter(n => isNodeComplete(n.id)).length;
+  const pct = Math.round(done/total*100);
+  const remaining = tree.nodes.filter(n => !isNodeComplete(n.id));
+  const remainingH = remaining.reduce((a,n) => a + (parseInt(n.time) || 0), 0);
+
+  document.getElementById('tb-done').textContent = done;
+  document.getElementById('tb-total').textContent = total;
+  document.getElementById('tb-time').textContent = remainingH + 'h';
+  document.getElementById('bb-nodes').textContent = total;
+  document.getElementById('prog-pct').textContent = pct + '%';
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('bb-prog').textContent = pct + '%';
+}
+
+// Canvas click handling
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const tree = CERT_TREES[currentCert];
+  const R = 42;
+
+  const hit = tree.nodes.find(n => Math.hypot(n.x - x, n.y - y) < R);
+  if (hit) showNodeDetail(hit);
+});
+
+function showNodeDetail(node) {
+  selectedNode = node;
+  drawTree();
+
+  const done = isNodeComplete(node.id);
+  const unlocked = isNodeUnlocked(node);
+
+  document.querySelector('#node-detail-card > div:first-child') && (document.querySelector('#node-detail-card > *:first-child').style.display = 'none');
+  const detail = document.getElementById('node-detail');
+  detail.classList.add('show');
+
+  document.getElementById('nd-title').textContent = node.label.replace('\n', ' ');
+  document.getElementById('nd-category').textContent = node.cat + ' · ' + (node.time === 'exam' ? 'EXAM' : 'EST. ' + node.time);
+  document.getElementById('nd-desc').textContent = node.desc;
+
+  const btn = document.getElementById('nd-complete-btn');
+  btn.textContent = done ? 'MARK INCOMPLETE' : 'MARK COMPLETE';
+  btn.style.background = done ? 'rgba(197,34,34,.1)' : '';
+  btn.style.borderColor = done ? 'var(--red)' : '';
+  btn.style.color = done ? 'var(--red)' : '';
+  if (!unlocked && !done) {
+    btn.disabled = true;
+    btn.textContent = 'LOCKED — Complete prerequisites first';
+  } else {
+    btn.disabled = false;
+  }
+
+  document.getElementById('nd-resources').innerHTML =
+    '<div style="font-size:10px;color:var(--green-dim);letter-spacing:1px;margin-bottom:6px">LEARNING RESOURCES</div>' +
+    (node.resources || []).map(r => `
+      <div class="resource-link">
+        <span class="resource-type rt-${r.type}">${r.type.toUpperCase()}</span>
+        <span>${r.t}</span>
+      </div>`).join('');
+}
+
+function toggleNode() {
+  if (!selectedNode) return;
+  if (!completedNodes[currentCert]) completedNodes[currentCert] = {};
+  const done = completedNodes[currentCert][selectedNode.id];
+  if (done) {
+    delete completedNodes[currentCert][selectedNode.id];
+  } else {
+    completedNodes[currentCert][selectedNode.id] = true;
+  }
+  localStorage.setItem('roadmap_completed', JSON.stringify(completedNodes));
+  showNodeDetail(selectedNode);
+  drawTree();
+}
+
+function resetProgress() {
+  if (!confirm('Reset all progress for ' + CERT_TREES[currentCert].name + '?')) return;
+  completedNodes[currentCert] = {};
+  localStorage.setItem('roadmap_completed', JSON.stringify(completedNodes));
+  selectedNode = null;
+  document.getElementById('node-detail').classList.remove('show');
+  drawTree();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+[build]
+publish = "."
+
+# Supabase proxy
+[[edge_functions]]
+path = "/sb/*"
+function = "sb"
+
+# Shodan scanner
+[[edge_functions]]
+path = "/scanner"
+function = "scanner"
+
+# Multi-module recon engine
+[[edge_functions]]
+path = "/api/recon"
+function = "recon"
+
+# OpenAI GPT-4o-mini proxy (replaces direct Anthropic calls)
+[[edge_functions]]
+path = "/api/ai"
+function = "ai"

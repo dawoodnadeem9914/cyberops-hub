@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberOps — Security News Feed</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/cyber.css">
+  <style>
+    .news-item {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:6px;
+      padding:14px 16px; margin-bottom:10px; transition:border-color .15s, box-shadow .15s;
+      position:relative;
+    }
+    .news-item:hover { border-color:var(--green-dim); box-shadow:0 0 10px rgba(34,197,34,.05); }
+    .news-item.bookmarked { border-left:3px solid var(--yellow); }
+
+    .news-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; }
+    .news-title { color:var(--green); font-size:13px; flex:1; line-height:1.5; }
+    .news-source { font-size:10px; color:var(--green-dim); flex-shrink:0; }
+
+    .news-meta { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+    .news-cat { font-size:10px; padding:2px 7px; border-radius:2px; font-family:var(--font-mono); }
+    .cat-vuln   { background:rgba(197,34,34,.15); color:var(--red); border:1px solid var(--red-dim); }
+    .cat-breach { background:rgba(197,165,34,.15); color:var(--yellow); border:1px solid var(--yellow-dim); }
+    .cat-malware{ background:rgba(138,58,221,.15); color:var(--purple); border:1px solid var(--purple); }
+    .cat-tools  { background:rgba(0,191,255,.1); color:var(--cyan); border:1px solid var(--cyan); }
+    .cat-exploit{ background:rgba(255,68,68,.15); color:#ff4444; border:1px solid #ff2222; }
+
+    .news-summary { font-size:12px; color:var(--green-dim); line-height:1.7; }
+    .news-summary.ai-summary { color:#a0d8a0; }
+
+    .news-actions {
+      display:flex; gap:8px; margin-top:10px; align-items:center; justify-content:space-between;
+    }
+    .news-actions .left { display:flex; gap:6px; }
+    .action-btn {
+      font-size:10px; padding:3px 9px; border-radius:3px; cursor:pointer;
+      font-family:var(--font-mono); letter-spacing:.5px; transition:all .15s;
+      border:1px solid var(--border); color:var(--green-dim); background:transparent;
+    }
+    .action-btn:hover { border-color:var(--green); color:var(--green); }
+    .action-btn.bookmarked-btn { color:var(--yellow); border-color:var(--yellow-dim); }
+
+    .cve-card {
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:5px;
+      padding:10px 14px; margin-bottom:8px; display:flex; align-items:center; gap:10px;
+    }
+    .cve-id { font-family:var(--font-display); color:var(--cyan); font-size:12px; font-weight:700; flex-shrink:0; width:130px; }
+    .cve-desc { flex:1; font-size:11px; color:var(--green-dim); line-height:1.5; }
+    .cvss-score { font-family:var(--font-display); font-size:16px; font-weight:700; flex-shrink:0; }
+
+    .feed-filter { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+    .filter-pill {
+      padding:5px 13px; font-family:var(--font-mono); font-size:11px; letter-spacing:.5px;
+      border-radius:20px; cursor:pointer; border:1px solid var(--border);
+      color:var(--green-dim); background:var(--bg-card); transition:all .15s;
+    }
+    .filter-pill.active { border-color:var(--green); color:var(--green); background:#0d1f0d; }
+    .filter-pill:hover:not(.active) { border-color:var(--green-dim); }
+
+    .ticker {
+      background:#020702; border:1px solid var(--border); border-radius:4px;
+      padding:8px 14px; margin-bottom:14px; overflow:hidden; position:relative;
+    }
+    .ticker-inner {
+      display:flex; gap:40px; white-space:nowrap;
+      animation:tickerScroll 30s linear infinite;
+    }
+    .ticker-inner:hover { animation-play-state:paused; }
+    @keyframes tickerScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+    .ticker-item { font-size:11px; color:var(--green-dim); }
+    .ticker-item .cve-ref { color:var(--cyan); }
+    .ticker-item .score { color:var(--red); }
+
+    .ai-generating { display:flex; gap:5px; align-items:center; }
+    .ai-generating span { width:5px; height:5px; border-radius:50%; background:var(--cyan); animation:thinkPulse .8s infinite; }
+    .ai-generating span:nth-child(2) { animation-delay:.15s; }
+    .ai-generating span:nth-child(3) { animation-delay:.3s; }
+    @keyframes thinkPulse { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
+  </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+    <div class="nav-section">
+      <div class="nav-label">CORE</div>
+      <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+      <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+      <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+      <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">INTELLIGENCE</div>
+      <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+      <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+      <a href="ai-terminal.html" class="nav-item"><div class="nav-dot"></div>GHOST-AI</a>
+      <a href="analytics.html" class="nav-item"><div class="nav-dot"></div>ANALYTICS</a>
+      <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item active"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">TOOLS</div>
+      <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+      <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+      <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+      <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ACCOUNT</div>
+      <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+      <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="u-label">OPERATOR</div>
+      <div class="u-name" id="sb-username">loading...</div>
+      <div class="u-status"><div class="status-dot"></div>FEED LIVE</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">// SECURITY NEWS FEED — LIVE THREAT INTELLIGENCE</span>
+      <div class="topbar-right">
+        <span class="tb-item">ITEMS <span id="tb-items">0</span></span>
+        <span class="tb-item">BOOKMARKS <span id="tb-bookmarks" style="color:var(--yellow)">0</span></span>
+        <span class="tb-item">FEED <span style="color:var(--green)">LIVE</span></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- CVE ticker -->
+      <div class="ticker mt">
+        <div class="ticker-inner" id="cve-ticker">
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-1234</span> — Apache RCE <span class="score">CVSS 9.8</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-5678</span> — OpenSSL DoS <span class="score">CVSS 7.5</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-9012</span> — Linux kernel priv-esc <span class="score">CVSS 8.8</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-3456</span> — Chrome sandbox escape <span class="score">CVSS 9.0</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-7890</span> — Spring Boot SSRF <span class="score">CVSS 6.5</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-2345</span> — Windows NTLM relay <span class="score">CVSS 8.1</span></span>
+          <!-- duplicate for seamless loop -->
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-1234</span> — Apache RCE <span class="score">CVSS 9.8</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-5678</span> — OpenSSL DoS <span class="score">CVSS 7.5</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-9012</span> — Linux kernel priv-esc <span class="score">CVSS 8.8</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-3456</span> — Chrome sandbox escape <span class="score">CVSS 9.0</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-7890</span> — Spring Boot SSRF <span class="score">CVSS 6.5</span></span>
+          <span class="ticker-item">⚡ <span class="cve-ref">CVE-2025-2345</span> — Windows NTLM relay <span class="score">CVSS 8.1</span></span>
+        </div>
+      </div>
+
+      <div class="g2 mt" style="gap:14px;align-items:start">
+        <!-- Main feed -->
+        <div style="grid-column:span 2" class="span2">
+          <!-- Stats -->
+          <div class="g4" style="margin-bottom:14px">
+            <div class="stat-box"><div class="stat-n" id="s-vuln" style="color:var(--red)">6</div><div class="stat-l">VULNERABILITIES</div></div>
+            <div class="stat-box"><div class="stat-n" id="s-breach" style="color:var(--yellow)">3</div><div class="stat-l">BREACHES</div></div>
+            <div class="stat-box"><div class="stat-n" id="s-malware" style="color:var(--purple)">2</div><div class="stat-l">MALWARE</div></div>
+            <div class="stat-box"><div class="stat-n" id="s-critical" style="color:#ff4444">4</div><div class="stat-l">CRITICAL CVEs</div></div>
+          </div>
+
+          <!-- Filters -->
+          <div class="feed-filter">
+            <span class="filter-pill active" onclick="filterFeed('all',this)">ALL</span>
+            <span class="filter-pill" onclick="filterFeed('vuln',this)">VULNERABILITIES</span>
+            <span class="filter-pill" onclick="filterFeed('breach',this)">BREACHES</span>
+            <span class="filter-pill" onclick="filterFeed('malware',this)">MALWARE</span>
+            <span class="filter-pill" onclick="filterFeed('tools',this)">TOOLS</span>
+            <span class="filter-pill" onclick="filterFeed('exploit',this)">EXPLOITS</span>
+            <span class="filter-pill" onclick="filterFeed('bookmarks',this)" id="bookmark-filter">⭐ BOOKMARKS</span>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+            <input type="text" id="search-input" class="form-input" style="flex:1;padding:7px 12px"
+                   placeholder="Search news..." oninput="filterFeed(currentFilter, null)">
+            <button class="btn btn-sm btn-primary" onclick="summariseAll()" id="sum-btn">[ AI SUMMARISE ALL ]</button>
+          </div>
+
+          <div id="news-feed-list"></div>
+        </div>
+      </div>
+
+      <!-- Trending CVEs -->
+      <div class="card mt">
+        <div class="card-title">// TRENDING CVEs <span class="badge badge-red">HIGH PRIORITY</span></div>
+        <div id="cve-list"></div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <span class="bb">FEED <span>LIVE</span></span>
+      <span class="bb">AI SUMMARIES <span>GHOST-AI</span></span>
+      <span class="bb">CVEs TODAY <span style="color:var(--red)">6</span></span>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+let currentFilter = 'all';
+let bookmarks = JSON.parse(localStorage.getItem('news_bookmarks') || '[]');
+let aiSummaries = JSON.parse(localStorage.getItem('news_summaries') || '{}');
+
+const NEWS_ITEMS = [
+  {
+    id: 'n1',
+    title: 'Critical Apache Struts RCE Vulnerability Actively Exploited in the Wild',
+    source: 'The Hacker News',
+    category: 'vuln',
+    cvss: 9.8,
+    cve: 'CVE-2025-1234',
+    time: '2h ago',
+    summary: 'A critical remote code execution vulnerability in Apache Struts 2 is being actively exploited. The flaw allows unauthenticated attackers to execute arbitrary code via crafted HTTP requests. Millions of enterprise applications are at risk. Patch to version 6.4.1 immediately.'
+  },
+  {
+    id: 'n2',
+    title: 'Major Data Breach Exposes 50 Million User Records from Cloud Storage Provider',
+    source: 'Krebs on Security',
+    category: 'breach',
+    cvss: null,
+    cve: null,
+    time: '4h ago',
+    summary: 'A misconfigured S3 bucket exposed 50 million user records including names, emails, hashed passwords, and partial payment data. The breach went undetected for 3 weeks. Affected users should reset passwords and monitor for phishing.'
+  },
+  {
+    id: 'n3',
+    title: 'New Ransomware Strain BlackNova Targets Healthcare and Critical Infrastructure',
+    source: 'SANS Internet Storm Center',
+    category: 'malware',
+    cvss: null,
+    cve: null,
+    time: '6h ago',
+    summary: 'Security researchers have identified a new ransomware family dubbed BlackNova that uses a novel double-extortion technique combined with supply chain compromise. IoCs and YARA rules released by CISA.'
+  },
+  {
+    id: 'n4',
+    title: 'Chrome Sandbox Escape Vulnerability Patched in Emergency Update',
+    source: 'Exploit-DB',
+    category: 'exploit',
+    cvss: 9.0,
+    cve: 'CVE-2025-3456',
+    time: '8h ago',
+    summary: 'Google issued an out-of-band patch for Chrome addressing a heap buffer overflow in the V8 JavaScript engine that allows sandbox escape. Exploitation has been observed in targeted attacks. Update to Chrome 132.0.6834.110.'
+  },
+  {
+    id: 'n5',
+    title: 'OpenSSL 3.x Denial of Service Vulnerability — Widespread Impact',
+    source: 'NVD / NIST',
+    category: 'vuln',
+    cvss: 7.5,
+    cve: 'CVE-2025-5678',
+    time: '10h ago',
+    summary: 'A null pointer dereference in OpenSSL\'s X.509 certificate parsing allows remote attackers to crash TLS servers. Any application using OpenSSL 3.0-3.3 for certificate validation is affected. Upgrade to 3.4.x.'
+  },
+  {
+    id: 'n6',
+    title: 'Linux Kernel Local Privilege Escalation — io_uring Race Condition',
+    source: 'SANS Internet Storm Center',
+    category: 'vuln',
+    cvss: 8.8,
+    cve: 'CVE-2025-9012',
+    time: '12h ago',
+    summary: 'A race condition in the Linux kernel\'s io_uring subsystem allows local unprivileged users to gain root privileges. The vulnerability affects kernels 5.15 through 6.6. PoC has been published. Patch or disable io_uring via sysctl.'
+  },
+  {
+    id: 'n7',
+    title: 'New Nuclei Templates Released for Spring Boot Actuator Misconfigurations',
+    source: 'Exploit-DB',
+    category: 'tools',
+    cvss: null,
+    cve: null,
+    time: '14h ago',
+    summary: 'ProjectDiscovery released 47 new Nuclei templates targeting Spring Boot actuator endpoint misconfigurations including exposed /env, /heapdump, and /actuator endpoints. Templates available on GitHub.'
+  },
+  {
+    id: 'n8',
+    title: 'Chinese APT Group Exploiting NTLM Relay Attacks Against Government Networks',
+    source: 'Krebs on Security',
+    category: 'exploit',
+    cvss: 8.1,
+    cve: 'CVE-2025-2345',
+    time: '16h ago',
+    summary: 'A nation-state threat actor is chaining SMB Signing disabled configurations with NTLM relay attacks to compromise Active Directory environments. CISA advisory recommends enforcing SMB Signing and disabling NTLM where possible.'
+  },
+  {
+    id: 'n9',
+    title: 'North Korean Lazarus Group Targets Crypto Exchange with Supply Chain Attack',
+    source: 'The Hacker News',
+    category: 'malware',
+    cvss: null,
+    cve: null,
+    time: '20h ago',
+    summary: 'The Lazarus APT compromised a popular npm package used by cryptocurrency exchanges to inject malicious code that steals wallet private keys. Approximately 14 packages were affected with millions of downloads combined.'
+  },
+  {
+    id: 'n10',
+    title: 'CVSS 4.0 Adoption Growing — What Security Teams Need to Know',
+    source: 'SANS Internet Storm Center',
+    category: 'tools',
+    cvss: null,
+    cve: null,
+    time: '1d ago',
+    summary: 'CVSS 4.0 introduces supplemental metrics for safety, automatable exploitation, and provider urgency. The new scoring system better reflects real-world exploitability and is being adopted by NVD, Red Hat, and major vendors.'
+  },
+  {
+    id: 'n11',
+    title: 'Fortinet FortiGate Zero-Day Exploited Before Patch Available',
+    source: 'NVD / NIST',
+    category: 'vuln',
+    cvss: 9.6,
+    cve: 'CVE-2025-7890',
+    time: '1d ago',
+    summary: 'A zero-day authentication bypass in Fortinet FortiGate firewalls is being exploited to gain admin access and deploy implants. Fortinet released an emergency patch and published IoCs. Affected organisations should audit admin accounts immediately.'
+  }
+];
+
+const CVE_ITEMS = [
+  { id:'CVE-2025-1234', product:'Apache Struts 2', desc:'Remote code execution via crafted HTTP multipart request. CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H', score:9.8, color:'#ff4444' },
+  { id:'CVE-2025-3456', product:'Google Chrome',    desc:'Heap buffer overflow in V8 JavaScript engine leading to sandbox escape', score:9.0, color:'#ff4444' },
+  { id:'CVE-2025-7890', product:'Fortinet FortiGate',desc:'Authentication bypass allows unauthenticated admin access to management interface', score:9.6, color:'#ff4444' },
+  { id:'CVE-2025-9012', product:'Linux Kernel',      desc:'Race condition in io_uring subsystem allows local privilege escalation to root', score:8.8, color:'var(--red)' },
+  { id:'CVE-2025-2345', product:'Windows NTLM',      desc:'NTLM relay attack via SMBv2 allows domain privilege escalation', score:8.1, color:'var(--red)' },
+  { id:'CVE-2025-5678', product:'OpenSSL 3.x',       desc:'Null pointer dereference in X.509 certificate parsing causes TLS server crash', score:7.5, color:'var(--yellow)' },
+];
+
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  document.getElementById('sb-username').textContent = user.email?.split('@')[0] || 'operator';
+  initMatrixRain('matrix', 0.07);
+  renderFeed();
+  renderCVEs();
+  updateCounts();
+})();
+
+function updateCounts() {
+  document.getElementById('tb-items').textContent = NEWS_ITEMS.length;
+  document.getElementById('tb-bookmarks').textContent = bookmarks.length;
+}
+
+function filterFeed(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderFeed();
+}
+
+function renderFeed() {
+  const search = document.getElementById('search-input')?.value.toLowerCase() || '';
+  let items = NEWS_ITEMS.filter(item => {
+    const matchFilter = currentFilter === 'all' ? true
+      : currentFilter === 'bookmarks' ? bookmarks.includes(item.id)
+      : item.category === currentFilter;
+    const matchSearch = !search || item.title.toLowerCase().includes(search) || item.summary.toLowerCase().includes(search);
+    return matchFilter && matchSearch;
+  });
+
+  const el = document.getElementById('news-feed-list');
+  if (!items.length) {
+    el.innerHTML = '<div style="color:#1a5a1a;font-size:11px;text-align:center;padding:20px">No items match filter</div>';
+    return;
+  }
+
+  el.innerHTML = items.map(item => {
+    const isBookmarked = bookmarks.includes(item.id);
+    const hasSummary = aiSummaries[item.id];
+    const catLabels = { vuln:'VULNERABILITY', breach:'BREACH', malware:'MALWARE', tools:'TOOLS', exploit:'EXPLOIT' };
+    const severityColor = item.cvss >= 9 ? '#ff4444' : item.cvss >= 7 ? 'var(--red)' : item.cvss >= 4 ? 'var(--yellow)' : 'var(--green)';
+
+    return `<div class="news-item ${isBookmarked ? 'bookmarked' : ''}" id="ni-${item.id}">
+      <div class="news-header">
+        <div class="news-title">${item.title}</div>
+        <div class="news-source">${item.source} · ${item.time}</div>
+      </div>
+      <div class="news-meta">
+        <span class="news-cat cat-${item.category}">${catLabels[item.category] || item.category.toUpperCase()}</span>
+        ${item.cve ? `<span style="font-size:10px;color:var(--cyan)">${item.cve}</span>` : ''}
+        ${item.cvss ? `<span style="font-size:10px;color:${severityColor}">CVSS ${item.cvss}</span>` : ''}
+      </div>
+      <div class="news-summary ${hasSummary ? 'ai-summary' : ''}" id="sum-${item.id}">
+        ${hasSummary ? '🤖 ' + aiSummaries[item.id] : item.summary}
+      </div>
+      <div class="news-actions">
+        <div class="left">
+          <button class="action-btn ${isBookmarked ? 'bookmarked-btn' : ''}" onclick="toggleBookmark('${item.id}',this)">
+            ${isBookmarked ? '⭐ SAVED' : '☆ SAVE'}
+          </button>
+          <button class="action-btn" onclick="aiSummarise('${item.id}',this)">
+            ${hasSummary ? '🤖 RE-SUMMARISE' : '🤖 AI SUMMARISE'}
+          </button>
+        </div>
+        <span style="font-size:10px;color:#1a5a1a">${item.source}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleBookmark(id, btn) {
+  if (bookmarks.includes(id)) {
+    bookmarks = bookmarks.filter(b => b !== id);
+    btn.textContent = '☆ SAVE';
+    btn.classList.remove('bookmarked-btn');
+    document.getElementById('ni-' + id)?.classList.remove('bookmarked');
+  } else {
+    bookmarks.push(id);
+    btn.textContent = '⭐ SAVED';
+    btn.classList.add('bookmarked-btn');
+    document.getElementById('ni-' + id)?.classList.add('bookmarked');
+  }
+  localStorage.setItem('news_bookmarks', JSON.stringify(bookmarks));
+  updateCounts();
+}
+
+async function aiSummarise(id, btn) {
+  const item = NEWS_ITEMS.find(n => n.id === id);
+  if (!item) return;
+
+  const sumEl = document.getElementById('sum-' + id);
+  sumEl.innerHTML = '<div class="ai-generating"><span></span><span></span><span></span> <span style="color:var(--cyan);font-size:11px;margin-left:6px">GHOST-AI summarising...</span></div>';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/ai', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'gpt-4o-mini',
+        max_tokens:200,
+        messages:[{
+          role:'user',
+          content:`Summarise this security news item in exactly 2 concise, informative sentences for a security professional. Focus on the key technical facts, impact, and any action required. No fluff.\n\nTitle: ${item.title}\nContent: ${item.summary}`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    aiSummaries[id] = text;
+    localStorage.setItem('news_summaries', JSON.stringify(aiSummaries));
+    sumEl.textContent = '🤖 ' + text;
+    sumEl.className = 'news-summary ai-summary';
+    btn.textContent = '🤖 RE-SUMMARISE';
+  } catch(e) {
+    sumEl.textContent = item.summary;
+  }
+  btn.disabled = false;
+}
+
+async function summariseAll() {
+  const btn = document.getElementById('sum-btn');
+  btn.disabled = true; btn.textContent = '[ SUMMARISING... ]';
+  // Summarise the first 4 unsummarised items
+  const toSummarise = NEWS_ITEMS.filter(n => !aiSummaries[n.id]).slice(0,4);
+  for (const item of toSummarise) {
+    await aiSummarise(item.id, { disabled:false, textContent:'' });
+    await new Promise(r => setTimeout(r, 500));
+  }
+  renderFeed();
+  btn.disabled = false; btn.textContent = '[ AI SUMMARISE ALL ]';
+}
+
+function renderCVEs() {
+  document.getElementById('cve-list').innerHTML = CVE_ITEMS.map(c =>
+    `<div class="cve-card">
+      <div class="cve-id">${c.id}</div>
+      <div>
+        <div style="font-size:11px;color:var(--green);margin-bottom:2px">${c.product}</div>
+        <div class="cve-desc">${c.desc}</div>
+      </div>
+      <div class="cvss-score" style="color:${c.color}">${c.score}</div>
+    </div>`
+  ).join('');
+}
+</script>
+</body>
+</html>

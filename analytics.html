@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberOps — Analytics</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="css/cyber.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:16px; }
+        .chart-card canvas { max-height:220px; }
+        .section-title { font-family:var(--font-mono); color:var(--green-dim); font-size:10px; letter-spacing:2px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+        .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+        .rank-bar { height:6px; background:var(--green-dark); border-radius:3px; margin-top:5px; overflow:hidden; }
+        .rank-fill { height:100%; background:var(--green); border-radius:3px; transition:width 0.8s ease; }
+        .stat-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #0d1a0d; }
+        .stat-row:last-child { border-bottom:none; }
+        .streak-display { font-family:var(--font-display); font-size:36px; color:var(--yellow); text-align:center; padding:16px 0 8px; }
+        .streak-label { text-align:center; font-size:10px; color:var(--green-dim); letter-spacing:2px; }
+        .cat-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+        .heat-grid { display:grid; grid-template-columns:repeat(12,1fr); gap:3px; }
+        .heat-cell { aspect-ratio:1; border-radius:2px; background:#0a0f0a; border:1px solid #0d1a0d; cursor:default; }
+        .heat-cell.h1 { background:#0d2e0d; }
+        .heat-cell.h2 { background:#1a5a1a; }
+        .heat-cell.h3 { background:#22c522; }
+        .heat-legend { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:10px; color:var(--green-dim); justify-content:flex-end; }
+        .heat-legend .heat-cell { width:12px; height:12px; flex-shrink:0; }
+        .no-data { color:var(--green-dim); font-size:12px; text-align:center; padding:24px; opacity:0.6; }
+    </style>
+</head>
+<body>
+<canvas id="matrix" class="matrix-canvas"></canvas>
+<div class="app">
+    <nav class="sidebar">
+        <div class="sidebar-logo"><h1>CYBEROPS</h1><p>UNIFIED PLATFORM v4.0</p></div>
+        <div class="nav-section">
+            <div class="nav-label">CORE</div>
+            <a href="dashboard.html" class="nav-item"><div class="nav-dot"></div>DASHBOARD</a>
+            <a href="ctf.html" class="nav-item"><div class="nav-dot"></div>CTF ARENA</a>
+            <a href="training.html" class="nav-item"><div class="nav-dot"></div>SEC TRAINING</a>
+            <a href="lab.html" class="nav-item"><div class="nav-dot"></div>PENTEST LAB</a>
+      <a href="hack-lab.html" class="nav-item"><div class="nav-dot"></div>HACK LAB</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-label">INTELLIGENCE</div>
+            <a href="scanner.html" class="nav-item"><div class="nav-dot"></div>GHOST SCANNER</a>
+            <a href="threat-intel.html" class="nav-item"><div class="nav-dot"></div>THREAT INTEL</a>
+            <a href="analytics.html" class="nav-item active"><div class="nav-dot"></div>ANALYTICS</a>
+            <a href="writeups.html" class="nav-item"><div class="nav-dot"></div>WRITEUPS</a>
+      <a href="news-feed.html" class="nav-item"><div class="nav-dot"></div>NEWS FEED</a>
+      <a href="code-auditor.html" class="nav-item"><div class="nav-dot"></div>CODE AUDITOR</a>
+        </div>
+    <div class="nav-section">
+            <div class="nav-label">TOOLS</div>
+            <a href="ctf-events.html" class="nav-item"><div class="nav-dot"></div>CTF EVENTS</a>
+            <a href="bug-bounty.html" class="nav-item"><div class="nav-dot"></div>BUG BOUNTY</a>
+            <a href="roadmap.html" class="nav-item"><div class="nav-dot"></div>OSCP ROADMAP</a>
+            <a href="payload-arsenal.html" class="nav-item"><div class="nav-dot"></div>PAYLOAD ARSENAL</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-label">ACCOUNT</div>
+            <a href="profile.html" class="nav-item"><div class="nav-dot"></div>MY PROFILE</a>
+            <a class="nav-item" onclick="signOut()" style="cursor:pointer"><div class="nav-dot"></div>SIGN OUT</a>
+        </div>
+        <div class="sidebar-footer">
+            <div class="u-label">LOGGED IN AS</div>
+            <div class="u-name" id="sb-username">loading...</div>
+            <div class="u-status"><div class="status-dot"></div>SECURE SESSION</div>
+        </div>
+    </nav>
+
+    <div class="main">
+        <div class="topbar">
+            <span class="topbar-title">// PERFORMANCE ANALYTICS</span>
+            <div class="topbar-right">
+                <span class="tb-item">XP <span id="tb-xp" style="color:#c5a522">0</span></span>
+                <span class="tb-item">RANK <span id="tb-rank">—</span></span>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Row 1: Quick stats -->
+            <div class="g4 mt">
+                <div class="stat-box">
+                    <div class="stat-n" id="stat-xp">0</div>
+                    <div class="stat-l">TOTAL XP</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-n" id="stat-ctf">0</div>
+                    <div class="stat-l">CTF SOLVED</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-n" id="stat-training">0</div>
+                    <div class="stat-l">MODULES DONE</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-n" id="stat-labs">0</div>
+                    <div class="stat-l">LAB ENTRIES</div>
+                </div>
+            </div>
+
+            <!-- Row 2: Charts -->
+            <div class="chart-card span2 mt" style="grid-column:span 2">
+                <div class="card-title">// SCAN ACTIVITY — LAST 14 DAYS</div>
+                <canvas id="chart-scans"></canvas>
+            </div>
+            <div class="g2 mt">
+                <!-- CTF by category -->
+                <div class="chart-card">
+                    <div class="section-title">CTF SOLVES BY CATEGORY</div>
+                    <canvas id="chart-ctf-cat"></canvas>
+                    <div class="no-data" id="no-ctf" style="display:none">No CTF solves yet — hit the arena!</div>
+                </div>
+
+                <!-- Training scores -->
+                <div class="chart-card">
+                    <div class="section-title">TRAINING MODULE SCORES</div>
+                    <canvas id="chart-training"></canvas>
+                    <div class="no-data" id="no-training" style="display:none">No training modules completed yet.</div>
+                </div>
+            </div>
+
+            <!-- Row 3: CTF solve timeline + Rank -->
+            <div class="g2 mt">
+                <div class="chart-card" style="grid-column:span 2">
+                    <div class="section-title">CTF SOLVES OVER TIME</div>
+                    <canvas id="chart-timeline"></canvas>
+                    <div class="no-data" id="no-timeline" style="display:none">Solve CTF challenges to see your progress here.</div>
+                </div>
+            </div>
+
+            <!-- Row 4: Points breakdown + leaderboard rank -->
+            <div class="g2 mt">
+                <div class="chart-card">
+                    <div class="section-title">POINTS BY DIFFICULTY</div>
+                    <div id="diff-breakdown">
+                        <div class="no-data">Loading...</div>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="section-title">LEADERBOARD POSITION</div>
+                    <div id="leaderboard-section">
+                        <div class="no-data">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /content -->
+    </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
+<script>
+    Chart.defaults.color = '#1a6a1a';
+    Chart.defaults.borderColor = '#1a3a1a';
+    Chart.defaults.font.family = "'Share Tech Mono', monospace";
+    Chart.defaults.font.size = 11;
+
+    const CHART_COLORS = ['#22c522','#c5a522','#c52222','#22c5c5','#c522c5','#c57a22','#22c58f'];
+    const DIFF_COLORS = { EASY:'#22c522', MEDIUM:'#c5a522', HARD:'#c52222' };
+
+    let userId;
+
+
+  async function loadScanData(userId) {
+    try {
+      const { data: scans, count } = await sb.from('scan_logs')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      const el = document.getElementById('stat-scans');
+      if (el) el.textContent = count || 0;
+
+      if (!scans || scans.length === 0) return;
+
+      // Group scans by date for chart
+      const byDate = {};
+      scans.forEach(s => {
+        const d = s.created_at?.slice(0, 10) || 'unknown';
+        byDate[d] = (byDate[d] || 0) + 1;
+      });
+      const labels = Object.keys(byDate).slice(-14);
+      const values = labels.map(d => byDate[d]);
+
+      // Module breakdown pie chart
+      const byModule = {};
+      scans.forEach(s => { byModule[s.module] = (byModule[s.module] || 0) + 1; });
+
+      const scanCtx = document.getElementById('chart-scans');
+      if (scanCtx && typeof Chart !== 'undefined') {
+        new Chart(scanCtx, {
+          type: 'bar',
+          data: {
+            labels: labels.map(d => d.slice(5)),
+            datasets: [{ label: 'Scans', data: values,
+              backgroundColor: 'rgba(34,197,34,0.25)', borderColor: '#22c522',
+              borderWidth: 1, borderRadius: 3 }]
+          },
+          options: {
+            responsive: true, plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: '#1a6a1a', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: '#0d1a0d' } },
+              y: { ticks: { color: '#1a6a1a', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: '#0d1a0d' }, beginAtZero: true }
+            }
+          }
+        });
+      }
+    } catch(e) {}
+  }
+
+  async function init() {
+      const user = await requireAuth();
+      if (!user) return;
+      userId = user.id;
+
+      const { data: profile } = await getProfile(userId);
+      if (profile) {
+        document.getElementById('sb-username').textContent = profile.username || user.email;
+        document.getElementById('stat-xp').textContent = profile.xp || 0;
+        document.getElementById('tb-xp').textContent = profile.xp || 0;
+      }
+
+      await Promise.all([
+        loadCTFData(),
+        loadTrainingData(),
+        loadLabData(),
+        loadLeaderboard(profile),
+      ]);
+    }
+
+    async function loadCTFData() {
+      // Get all submissions with challenge info
+      const { data: subs } = await sb.from('ctf_submissions')
+        .select('solved_at, challenge_id, ctf_challenges(category, points, difficulty)')
+        .eq('user_id', userId)
+        .order('solved_at', { ascending: true });
+
+      const count = subs?.length || 0;
+      document.getElementById('stat-ctf').textContent = count;
+
+      if (!count) {
+        ['chart-ctf-cat','chart-timeline'].forEach(id => document.getElementById(id).style.display = 'none');
+        document.getElementById('no-ctf').style.display = 'block';
+        document.getElementById('no-timeline').style.display = 'block';
+        document.getElementById('diff-breakdown').innerHTML = '<div class="no-data">No solves yet.</div>';
+        return;
+      }
+
+      // --- Category donut ---
+      const catCounts = {};
+      const diffPoints = { EASY:0, MEDIUM:0, HARD:0 };
+      subs.forEach(s => {
+        const cat = s.ctf_challenges?.category || 'OTHER';
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
+        const diff = s.ctf_challenges?.difficulty || 'EASY';
+        diffPoints[diff] = (diffPoints[diff] || 0) + (s.ctf_challenges?.points || 0);
+      });
+
+      new Chart(document.getElementById('chart-ctf-cat'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(catCounts),
+          datasets: [{ data: Object.values(catCounts), backgroundColor: CHART_COLORS, borderColor: '#050a05', borderWidth: 2 }]
+        },
+        options: { plugins: { legend: { position: 'right', labels: { color: '#22c522', boxWidth: 12, padding: 14 } } }, cutout: '65%' }
+      });
+
+      // --- Points by difficulty ---
+      const diffHtml = Object.entries(diffPoints).map(([d, pts]) => {
+        const max = Math.max(...Object.values(diffPoints)) || 1;
+        return `<div style="margin-bottom:10px">
+          <div class="stat-row"><span>${d}</span><span style="color:${DIFF_COLORS[d]}">${pts} XP</span></div>
+          <div class="rank-bar"><div class="rank-fill" style="width:${(pts/max*100).toFixed(0)}%;background:${DIFF_COLORS[d]}"></div></div>
+        </div>`;
+      }).join('');
+      document.getElementById('diff-breakdown').innerHTML = diffHtml;
+
+      // --- Timeline line chart (cumulative solves by day) ---
+      const dayMap = {};
+      subs.forEach(s => {
+        const day = s.solved_at.slice(0,10);
+        dayMap[day] = (dayMap[day] || 0) + 1;
+      });
+      const sortedDays = Object.keys(dayMap).sort();
+      let cumulative = 0;
+      const cumulativeData = sortedDays.map(d => { cumulative += dayMap[d]; return { x: d, y: cumulative }; });
+
+      // Pad to today if we have data
+      const today = new Date().toISOString().slice(0,10);
+      if (cumulativeData[cumulativeData.length-1]?.x !== today) {
+        cumulativeData.push({ x: today, y: cumulative });
+      }
+
+      new Chart(document.getElementById('chart-timeline'), {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Total CTF Solves',
+            data: cumulativeData,
+            borderColor: '#22c522',
+            backgroundColor: 'rgba(34,197,34,0.08)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 4,
+            pointBackgroundColor: '#22c522',
+          }]
+        },
+        options: {
+          parsing: false,
+          scales: {
+            x: { type:'category', ticks:{ color:'#1a6a1a' }, grid:{ color:'#0d1a0d' } },
+            y: { beginAtZero:true, ticks:{ color:'#1a6a1a', stepSize:1 }, grid:{ color:'#0d1a0d' } }
+          },
+          plugins: { legend:{ display:false } }
+        }
+      });
+
+      // Streak calculation
+      (function() {
+        var sdates = (subs || []).map(function(s){ return s.solved_at ? s.solved_at.slice(0,10) : null; }).filter(Boolean);
+        var suniq = sdates.filter(function(v,i,a){ return a.indexOf(v)===i; }).sort().reverse();
+        var sstreak = 0;
+        var scheck = new Date().toISOString().slice(0,10);
+        for (var si = 0; si < suniq.length; si++) {
+          if (suniq[si] === scheck) {
+            sstreak++;
+            var sp = new Date(scheck); sp.setDate(sp.getDate()-1);
+            scheck = sp.toISOString().slice(0,10);
+          } else break;
+        }
+        var sel = document.getElementById('streak-count');
+        if (sel) sel.textContent = sstreak;
+      })();
+    }
+
+    async function loadTrainingData() {
+      const { data: mods } = await sb.from('training_progress')
+        .select('module_name, score, completed')
+        .eq('user_id', userId)
+        .eq('completed', true);
+
+      const count = mods?.length || 0;
+      document.getElementById('stat-training').textContent = count;
+
+      if (!count) {
+        document.getElementById('chart-training').style.display = 'none';
+        document.getElementById('no-training').style.display = 'block';
+        return;
+      }
+
+      new Chart(document.getElementById('chart-training'), {
+        type: 'bar',
+        data: {
+          labels: mods.map(m => m.module_name.replace(/[_-]/g,' ').toUpperCase().slice(0,14)),
+          datasets: [{
+            label: 'Score',
+            data: mods.map(m => m.score),
+            backgroundColor: mods.map(m => m.score >= 80 ? 'rgba(34,197,34,0.6)' : m.score >= 60 ? 'rgba(197,165,34,0.6)' : 'rgba(197,34,34,0.5)'),
+            borderColor: mods.map(m => m.score >= 80 ? '#22c522' : m.score >= 60 ? '#c5a522' : '#c52222'),
+            borderWidth: 1,
+            borderRadius: 3,
+          }]
+        },
+        options: {
+          scales: {
+            x: { ticks:{ color:'#1a6a1a', maxRotation:30 }, grid:{ color:'#0d1a0d' } },
+            y: { beginAtZero:true, max:100, ticks:{ color:'#1a6a1a', callback: v => v+'%' }, grid:{ color:'#0d1a0d' } }
+          },
+          plugins: { legend:{ display:false } }
+        }
+      });
+    }
+
+    async function loadLabData() {
+      const { data: labs } = await sb.from('lab_entries').select('id').eq('user_id', userId);
+      document.getElementById('stat-labs').textContent = labs?.length || 0;
+    }
+
+    async function loadLeaderboard(myProfile) {
+      const { data: board } = await sb.from('profiles')
+        .select('username, xp, id')
+        .order('xp', { ascending: false })
+        .limit(10);
+
+      if (!board?.length) {
+        document.getElementById('leaderboard-section').innerHTML = '<div class="no-data">No leaderboard data.</div>';
+        return;
+      }
+
+      const myRank = board.findIndex(p => p.id === userId) + 1;
+      if (myRank > 0) document.getElementById('tb-rank').textContent = '#' + myRank;
+
+      const maxXP = board[0].xp || 1;
+      const html = board.map((p, i) => {
+        const isMe = p.id === userId;
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+        return `<div class="stat-row" style="${isMe?'background:#0d2a0d;border-radius:4px;padding:4px 8px;border-color:var(--green)':''}">
+          <span style="color:${isMe?'var(--green)':'var(--green-dim)'}">${medal} ${p.username||'anon'}</span>
+          <span style="color:${isMe?'var(--yellow)':'var(--green-dim)'}">${p.xp||0} XP</span>
+        </div>
+        <div class="rank-bar"><div class="rank-fill" style="width:${((p.xp||0)/maxXP*100).toFixed(0)}%"></div></div>`;
+      }).join('');
+
+      document.getElementById('leaderboard-section').innerHTML = html;
+    }
+
+    initMatrixRain('matrix', 0.06);
+    init();
+</script>
+</body>
+</html>
